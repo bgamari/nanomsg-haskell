@@ -1,0 +1,48 @@
+name:                nanomsg-haskell
+version:             0.0.1
+synopsis:
+  Bindings to the nanomsg messaging library
+description:
+  Initial draft of a nanomsg binding. This probably can't be considered
+  idiomatic, or even safe and usable for now.
+
+  Official library homepage: http://nanomsg.org/
+homepage:            https://github.com/ivarnymoen/nanomsg-haskell
+license:             MIT
+license-file:        LICENSE
+author:              Ivar Nymoen <ivar.nymoen@gmail.com>
+maintainer:          Ivar Nymoen <ivar.nymoen@gmail.com>
+copyright:           Copyright (c) 2013 Ivar Nymoen
+category:            Network
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  hs-source-dirs:      src
+  ghc-options:         -Wall -O2 -threaded
+  exposed-modules:     Nanomsg
+  --other-modules:       Nanomsg.Internal
+  extensions:          ForeignFunctionInterface
+  includes:            nanomsg/nn.h
+  extra-libraries:     nanomsg
+  build-depends:
+    base ==4.5.*,
+    bytestring
+
+test-suite tests
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  main-is:            Properties.hs
+  ghc-options:        -Wall -threaded -O2 -rtsopts
+  build-depends:
+    base,
+    bytestring,
+    QuickCheck,
+    test-framework,
+    test-framework-quickcheck2,
+    nanomsg-haskell
+
+source-repository head
+  type:               git
+  location:           https://github.com/ivarnymoen/nanomsg-haskell
+
