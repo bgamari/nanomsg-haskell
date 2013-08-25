@@ -14,10 +14,11 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
 import qualified Data.ByteString.Unsafe as U
 
---import Foreign
+import Foreign
 import Foreign.C.Types
 import Foreign.C.String
-import Foreign.Ptr
+--import Foreign.Ptr
+import Foreign.ForeignPtr.Unsafe as Unsafeptr
 
 import Control.Applicative ( (<$>) )
 import Control.Monad (forever)
@@ -64,15 +65,15 @@ data Pull = Pull
 data Bus = Bus
     deriving (Eq, Ord, Show)
 
--- Endpoint identifier. Returned from connect/bind.
+-- | Endpoint identifier. Created by connect/bind.
 data Endpoint = Endpoint CInt
     deriving (Eq, Ord, Show)
 
--- a is the socket type
-data Socket a = Socket a CInt
+-- t is the socket type
+data Socket t = Socket t CInt
 
-class SocketType a where
-    socketType :: a -> CInt
+class SocketType t where
+    socketType :: t -> CInt
 
 instance SocketType Pair where
     socketType Pair = #const NN_PAIR
@@ -105,7 +106,7 @@ instance SocketType Bus where
     socketType Bus = #const NN_BUS
 
 
-class Sender a
+class Sender t
 
 instance Sender Pair
 instance Sender Req
@@ -116,7 +117,7 @@ instance Sender Respondent
 instance Sender Push
 instance Sender Bus
 
-class Receiver a
+class Receiver t
 
 instance Receiver Pair
 instance Receiver Rep
@@ -126,6 +127,9 @@ instance Receiver Surveyor
 instance Receiver Pull
 instance Receiver Bus
 
+class Subscriber t
+
+instance Subscriber Sub
 
 
 -- FFI functions
@@ -152,7 +156,7 @@ foreign import ccall unsafe "nn.h nn_send"
 
 -- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
 foreign import ccall unsafe "nn.h nn_recv"
-    c_nn_recv :: CInt -> Ptr () -> CInt -> CInt -> IO CInt
+    c_nn_recv :: CInt -> Ptr CChar -> CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_freemsg (void *msg);
 foreign import ccall unsafe "nn.h nn_freemsg"
@@ -168,11 +172,11 @@ foreign import ccall unsafe "nn.h nn_term"
 
 -- NN_EXPORT int nn_setsockopt (int s, int level, int option, const void *optval, size_t optvallen);
 foreign import ccall unsafe "nn.h nn_setsockopt"
-    c_nn_setsockopt :: CInt -> CInt -> CInt -> Ptr () -> CInt -> IO CInt
+    c_nn_setsockopt :: CInt -> CInt -> CInt -> Ptr CChar -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_getsockopt (int s, int level, int option, void *optval, size_t *optvallen);
 foreign import ccall unsafe "nn.h nn_getsockopt"
-    c_nn_getsockopt :: CInt -> CInt -> CInt -> Ptr () -> CInt -> IO CInt
+    c_nn_getsockopt :: CInt -> CInt -> CInt -> Ptr CChar -> CInt -> IO CInt
 
 {-
 
@@ -195,10 +199,10 @@ NN_EXPORT void *nn_allocmsg (size_t size, int type);
 
 
 -- Exported functions
-mkSocket :: (SocketType a) => a -> IO (Socket a)
-mkSocket a = do
-    sid <- c_nn_socket (#const AF_SP) (socketType a)
-    return $ Socket a sid
+socket :: (SocketType t) => t -> IO (Socket t)
+socket t = do
+    sid <- c_nn_socket (#const AF_SP) (socketType t)
+    return $ Socket t sid
 
 bind :: Socket t -> String -> IO Endpoint
 bind (Socket _ sid) addr = withCString addr $ \adr -> Endpoint <$> c_nn_bind sid adr
@@ -211,16 +215,36 @@ shutdown (Socket _ sid) (Endpoint eid) = do
     _ <- c_nn_shutdown sid eid
     return ()
 
-send :: Sender t => Socket t -> B.ByteString -> IO ()
+send :: (Sender t, SocketType t) => Socket t -> B.ByteString -> IO ()
 send (Socket _ sid) string = do
     _ <- U.unsafeUseAsCStringLen string (\(ptr, len) -> c_nn_send sid ptr (fromIntegral len) 0)
     return ()
 
-recv :: Socket t -> IO B.ByteString
-recv = undefined
+subscribe :: (Subscriber t, SocketType t) => Socket t -> B.ByteString -> IO ()
+subscribe (Socket t sid) string = do
+    _ <- U.unsafeUseAsCStringLen string $
+        \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_SUBSCRIBE) ptr (fromIntegral len)
+    return ()
 
-recv' :: Socket t -> IO (Maybe B.ByteString)
-recv' = undefined
+unsubscribe :: (Subscriber t, SocketType t) => Socket t -> B.ByteString -> IO ()
+unsubscribe (Socket t sid) string = do
+    _ <- U.unsafeUseAsCStringLen string $
+        \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_UNSUBSCRIBE) ptr (fromIntegral len)
+    return ()
+
+recv :: (Receiver t, SocketType t) => Socket t -> Int -> IO B.ByteString
+recv (Socket _ sid) bufsize = do
+    ptr <- mallocForeignPtrBytes bufsize
+    len <- c_nn_recv sid (Unsafeptr.unsafeForeignPtrToPtr ptr) (fromIntegral bufsize) 0
+    C.packCStringLen (Unsafeptr.unsafeForeignPtrToPtr ptr, fromIntegral len)
+
+recv' :: (Receiver t, SocketType t) => Socket t -> Int -> IO (Maybe B.ByteString)
+recv' (Socket _ sid) bufsize = do
+    ptr <- mallocForeignPtrBytes bufsize
+    len <- c_nn_recv sid (Unsafeptr.unsafeForeignPtrToPtr ptr) (fromIntegral bufsize) (#const NN_DONTWAIT)
+    if len > 0
+        then Just <$> C.packCStringLen (Unsafeptr.unsafeForeignPtrToPtr ptr, fromIntegral len)
+        else return Nothing
 
 close :: Socket t -> IO ()
 close (Socket _ sid) = do
@@ -232,8 +256,11 @@ term = c_nn_term
 
 main :: IO ()
 main = do
-    a <- mkSocket Pub
-    _ <- bind a "tcp://*:8899"
-    forever $
-        send a $ C.pack "100"
+    a <- socket Sub
+    _ <- connect a "tcp://localhost:8899"
+    _ <- subscribe a (C.pack "")
+    putStrLn "Listening!"
+    forever $ do
+        s <- recv a 1000
+        C.putStrLn $ C.concat [C.pack "Received: ", s]
 
