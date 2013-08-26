@@ -1,5 +1,4 @@
 /cabal-dev
 /dist
-/src/Nanomsg.hs
 *.swp
 

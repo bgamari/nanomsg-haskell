@@ -1,0 +1,43 @@
+Running 1 benchmarks...
+Benchmark allocation: RUNNING...
+warming up
+estimating clock resolution...
+mean is 2.273601 us (320001 iterations)
+found 39729 outliers among 319999 samples (12.4%)
+  943 (0.3%) low severe
+  38786 (12.1%) high severe
+estimating cost of a clock call...
+mean is 112.7122 ns (13 iterations)
+found 1 outliers among 13 samples (7.7%)
+  1 (7.7%) high mild
+
+benchmarking 20 bytes x 100k messages, 20B preallocated buffer
+collecting 100 samples, 1 iterations each, in estimated 26.08490 s
+mean: 262.5839 ms, lb 262.1512 ms, ub 263.0487 ms, ci 0.950
+std dev: 2.303430 ms, lb 1.993100 ms, ub 2.781057 ms, ci 0.950
+
+benchmarking 20 bytes x 100k messages, 4k preallocated buffer
+collecting 100 samples, 1 iterations each, in estimated 27.37200 s
+mean: 279.4626 ms, lb 278.8382 ms, ub 280.1240 ms, ci 0.950
+std dev: 3.290542 ms, lb 2.884079 ms, ub 3.814259 ms, ci 0.950
+
+benchmarking 20 bytes x 100k messages, 40k preallocated buffer
+collecting 100 samples, 1 iterations each, in estimated 34.80291 s
+mean: 348.6908 ms, lb 348.2891 ms, ub 349.0967 ms, ci 0.950
+std dev: 2.063651 ms, lb 1.812484 ms, ub 2.368519 ms, ci 0.950
+
+benchmarking 20 bytes x 100k messages, nanomsg-allocated buffer
+collecting 100 samples, 1 iterations each, in estimated 27.10221 s
+mean: 274.7511 ms, lb 274.2836 ms, ub 275.2277 ms, ci 0.950
+std dev: 2.423356 ms, lb 2.122825 ms, ub 2.864387 ms, ci 0.950
+
+benchmarking 20k bytes x 100 messages, 40k preallocated buffer
+collecting 100 samples, 1 iterations each, in estimated 18.14868 s
+mean: 183.3459 ms, lb 183.1614 ms, ub 183.5324 ms, ci 0.950
+std dev: 950.2264 us, lb 827.7107 us, ub 1.123418 ms, ci 0.950
+
+benchmarking 20k bytes x 100 messages, nanomsg-allocated buffer
+collecting 100 samples, 1 iterations each, in estimated 17.98232 s
+mean: 183.6492 ms, lb 183.3891 ms, ub 183.8891 ms, ci 0.950
+std dev: 1.283308 ms, lb 1.122662 ms, ub 1.525222 ms, ci 0.950
+Benchmark allocation: FINISH

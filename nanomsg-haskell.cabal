@@ -36,13 +36,27 @@ test-suite tests
   ghc-options:        -Wall -threaded -O2 -rtsopts
   build-depends:
     base,
+    nanomsg-haskell,
     bytestring,
     QuickCheck,
     test-framework,
     test-framework-quickcheck2,
-    nanomsg-haskell
+    test-framework-th,
+    transformers
 
 source-repository head
   type:               git
   location:           https://github.com/ivarnymoen/nanomsg-haskell
+
+benchmark allocation
+  type:           exitcode-stdio-1.0
+  main-is:        Allocation.hs
+  ghc-options:    -Wall -O2 -threaded
+  hs-source-dirs: benchmarks
+  build-depends:
+    base,
+    nanomsg-haskell,
+    criterion,
+    bytestring,
+    transformers
 
