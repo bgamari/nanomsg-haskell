@@ -18,7 +18,6 @@ import Foreign
 import Foreign.C.Types
 import Foreign.C.String
 --import Foreign.Ptr
-import Foreign.ForeignPtr.Unsafe as Unsafeptr
 
 import Control.Applicative ( (<$>) )
 
@@ -219,28 +218,26 @@ unsubscribe (Socket t sid) string = do
         \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_UNSUBSCRIBE) ptr (fromIntegral len)
     return ()
 
-recv :: (Receiver t, SocketType t) => Socket t -> Int -> IO B.ByteString
-recv (Socket _ sid) bufsize =
-    if bufsize > 0
-        then do
-            ptr <- mallocForeignPtrBytes bufsize
-            len <- c_nn_recv sid (Unsafeptr.unsafeForeignPtrToPtr ptr) (fromIntegral bufsize) 0
-            C.packCStringLen (Unsafeptr.unsafeForeignPtrToPtr ptr, fromIntegral len)
-        else do
-            alloca $ \ptr -> do
-                len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) 0
+recv :: (Receiver t, SocketType t) => Socket t -> IO B.ByteString
+recv (Socket _ sid) =
+    alloca $ \ptr -> do
+        len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) 0
+        buf <- peek ptr
+        str <- C.packCStringLen (buf, fromIntegral len)
+        _ <- c_nn_freemsg buf
+        return str
+
+recv' :: (Receiver t, SocketType t) => Socket t -> IO (Maybe B.ByteString)
+recv' (Socket _ sid) = do
+    alloca $ \ptr -> do
+        len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT)
+        if len >= 0
+            then do
                 buf <- peek ptr
                 str <- C.packCStringLen (buf, fromIntegral len)
                 _ <- c_nn_freemsg buf
-                return str
-
-recv' :: (Receiver t, SocketType t) => Socket t -> Int -> IO (Maybe B.ByteString)
-recv' (Socket _ sid) bufsize = do
-    ptr <- mallocForeignPtrBytes bufsize
-    len <- c_nn_recv sid (Unsafeptr.unsafeForeignPtrToPtr ptr) (fromIntegral bufsize) (#const NN_DONTWAIT)
-    if len > 0
-        then Just <$> C.packCStringLen (Unsafeptr.unsafeForeignPtrToPtr ptr, fromIntegral len)
-        else return Nothing
+                return $ Just str
+            else return Nothing
 
 close :: Socket t -> IO ()
 close (Socket _ sid) = do
