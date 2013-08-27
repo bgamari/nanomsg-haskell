@@ -33,6 +33,7 @@ module Nanomsg
         , Endpoint
         -- * Functions
         , socket
+        , withSocket
         , bind
         , connect
         , send
@@ -61,6 +62,7 @@ import Foreign
 import Foreign.C.Types
 import Foreign.C.String
 import Control.Applicative ( (<$>) )
+import Control.Exception.Base (bracket)
 
 -- | Socket for communication with exactly one peer. Each
 -- party can send messages at any time. If the peer is not
@@ -294,6 +296,19 @@ socket :: (SocketType t) => t -> IO (Socket t)
 socket t = do
     sid <- c_nn_socket (#const AF_SP) (socketType t)
     return $ Socket t sid
+
+-- | Creates a socket and runs your action with it.
+--
+-- E.g. collecting 10 messages:
+--
+-- > withSocket Sub $ \sub -> do
+-- >     _ <- connect sub "tcp://localhost:5560"
+-- >     _ <- subscribe sub (C.pack "")
+-- >     replicateM 10 (recv sub)
+--
+-- Ensures the socket is closed when your action is done.
+withSocket :: (SocketType t) => t -> (Socket t -> IO a) -> IO a
+withSocket t = bracket (socket t) close
 
 -- | Binds the socket to a local interface.
 --
