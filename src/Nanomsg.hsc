@@ -1,5 +1,49 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Nanomsg where
+-- |
+-- Module:          Nanomsg
+-- Copyright:       (c) 2013 Ivar Nymoen
+-- License:         MIT
+-- Stability:       experimental
+--
+-- This is a Haskell binding for the nanomsg messaging
+-- library: <http://nanomsg.org/>.
+--
+-- The goal is to come up with a simple and robust interface. Low level
+-- features like raw sockets and some non-essentials (e.g. devices)
+-- will not be supported.
+--
+-- Socket type documentation is adapted or quoted verbatim from the
+-- nanomsg manual. Please refer to nanomsg.org for information on
+-- how to use the library.
+module Nanomsg
+        (
+        -- * Socket types
+          Pair(..)
+        , Req(..)
+        , Rep(..)
+        , Pub(..)
+        , Sub(..)
+        , Surveyor(..)
+        , Respondent(..)
+        , Push(..)
+        , Pull(..)
+        , Bus(..)
+        -- * Other types
+        , Socket
+        , Endpoint
+        -- * Functions
+        , socket
+        , bind
+        , connect
+        , send
+        , recv
+        , recv'
+        , subscribe
+        , unsubscribe
+        , shutdown
+        , close
+        , term
+    ) where
 
 #include "nanomsg/nn.h"
 #include "nanomsg/pair.h"
@@ -9,49 +53,100 @@ module Nanomsg where
 #include "nanomsg/pipeline.h"
 #include "nanomsg/bus.h"
 
-import qualified Data.ByteString as B
+import Data.ByteString (ByteString)
 --import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C
 import qualified Data.ByteString.Unsafe as U
-
 import Foreign
 import Foreign.C.Types
 import Foreign.C.String
---import Foreign.Ptr
-
 import Control.Applicative ( (<$>) )
 
-
--- Socket types
+-- | Socket for communication with exactly one peer. Each
+-- party can send messages at any time. If the peer is not
+-- available or send buffer is full, subsequent calls to
+-- 'send' will block until it’s possible to send the message.
 data Pair = Pair
-    deriving (Eq, Ord, Show)
+
+-- | Used to implement a client application that sends requests
+-- and receives replies. The socket will resend requests automatically
+-- if there's no reply within a given time. The default timeout
+-- is 1 minute.
+--
+-- See also 'setRequestResendInterval'.
 data Req = Req
-    deriving (Eq, Ord, Show)
+
+-- | Used to implement a stateless worker that receives requests
+-- and sends replies.
 data Rep = Rep
-    deriving (Eq, Ord, Show)
+
+-- | This socket is used to distribute messages to multiple destinations.
+-- Can not receive.
 data Pub = Pub
-    deriving (Eq, Ord, Show)
+
+-- | Receives messages from the publisher. Only messages that the socket is
+-- subscribed to are received. When the socket is created there are no
+-- subscriptions and thus no messages will be received.
+--
+-- Send is not defined on this socket. The socket can be connected
+-- to at most one peer.
+--
+-- See also 'subscribe' and 'unsubscribe'.
 data Sub = Sub
-    deriving (Eq, Ord, Show)
+
+-- | Surveyor and respondent are used to broadcast a survey to multiple
+-- locations and gather the responses.
+--
+-- This socket is used to send the survey. The survey is delivered to all
+-- the connected respondents. Once the query is sent, the socket can be used
+-- to receive the responses.
+--
+-- When the survey deadline expires, receive will return ETIMEDOUT error.
+--
+-- See also 'setSurveyorDeadline'
 data Surveyor = Surveyor
-    deriving (Eq, Ord, Show)
+
+-- | Used to respond to a survey. Survey is received using receive function,
+-- response is sent using send function. This socket can be connected to
+-- at most one peer.
 data Respondent = Respondent
-    deriving (Eq, Ord, Show)
+
+-- | Push and Pull sockets fair queue messages from one processing step, load
+-- balancing them among instances of the next processing step.
+--
+-- This socket is used to send messages to a cluster of load-balanced nodes.
+--
+-- Receive operation is not implemented on this socket type.
 data Push = Push
-    deriving (Eq, Ord, Show)
+
+-- | This socket is used to receive a message from a cluster of nodes.
+--
+-- Send operation is not implemented on this socket type.
 data Pull = Pull
-    deriving (Eq, Ord, Show)
+
+-- | Broadcasts messages from any node to all other nodes in the topology.
+-- The socket should never receives messages that it sent itself.
+--
+-- This pattern scales only to local level (within a single machine or
+-- within a single LAN). Trying to scale it further can result in overloading
+-- individual nodes with messages.
 data Bus = Bus
-    deriving (Eq, Ord, Show)
 
--- | Endpoint identifier. Created by connect/bind.
+-- | Endpoint identifier. Created by 'connect' or 'bind'.
+--
+-- Close connections using 'shutdown'.
 data Endpoint = Endpoint CInt
-    deriving (Eq, Ord, Show)
+    deriving (Eq)
 
--- t is the socket type
+-- | Sockets are created by 'socket' and connections are established with 'connect' or 'bind'.
+--
+-- Free sockets using 'close'.
 data Socket t = Socket t CInt
+    deriving (Eq)
 
+-- | Typeclass used by all sockets, to extract their C type.
 class SocketType t where
+    -- | Returns the C enum value for each type. E.g. Pair => #const NN_PAIR
     socketType :: t -> CInt
 
 instance SocketType Pair where
@@ -85,30 +180,39 @@ instance SocketType Bus where
     socketType Bus = #const NN_BUS
 
 
-class Sender t
+-- | Typeclass restricting which sockets can use the send function.
+class SendType t
+instance SendType Pair
+instance SendType Req
+instance SendType Rep
+instance SendType Pub
+instance SendType Surveyor
+instance SendType Respondent
+instance SendType Push
+instance SendType Bus
 
-instance Sender Pair
-instance Sender Req
-instance Sender Rep
-instance Sender Pub
-instance Sender Surveyor
-instance Sender Respondent
-instance Sender Push
-instance Sender Bus
+-- | Typeclass for sockets that implement recv
+class RecvType t
+instance RecvType Pair
+instance RecvType Req
+instance RecvType Rep
+instance RecvType Sub
+instance RecvType Surveyor
+instance RecvType Respondent
+instance RecvType Pull
+instance RecvType Bus
 
-class Receiver t
+-- | Sub socket functionality
+class SubscriberType t
+instance SubscriberType Sub
 
-instance Receiver Pair
-instance Receiver Rep
-instance Receiver Sub
-instance Receiver Respondent
-instance Receiver Surveyor
-instance Receiver Pull
-instance Receiver Bus
+-- | Surveyor socket functionality
+class SurvType t
+instance SurvType Surveyor
 
-class Subscriber t
-
-instance Subscriber Sub
+-- | Req socket functionality
+class ReqType t
+instance ReqType Req
 
 
 -- FFI functions
@@ -134,8 +238,8 @@ foreign import ccall unsafe "nn.h nn_send"
     c_nn_send :: CInt -> Ptr CChar -> CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
-foreign import ccall unsafe "nn.h nn_recv"
-    c_nn_recv :: CInt -> Ptr CChar -> CInt -> CInt -> IO CInt
+--foreign import ccall unsafe "nn.h nn_recv"
+--    c_nn_recv :: CInt -> Ptr CChar -> CInt -> CInt -> IO CInt
 
 foreign import ccall unsafe "nn.h nn_recv"
     c_nn_recv_foreignbuf :: CInt -> Ptr (Ptr CChar) -> CInt -> CInt -> IO CInt
@@ -183,42 +287,61 @@ foreign import ccall unsafe "nn.h nn_strerror"
 NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -}
 
-
--- Exported functions
+-- | Creates a socket. Connections are formed using 'bind' or 'connect'.
+--
+-- See also: 'close'.
 socket :: (SocketType t) => t -> IO (Socket t)
 socket t = do
     sid <- c_nn_socket (#const AF_SP) (socketType t)
     return $ Socket t sid
 
+-- | Binds the socket to a local interface.
+--
+-- See the nanomsg documentation for specifics on transports.
+-- Note that host names do not work for tcp. Some examples are:
+--
+-- > bind sock "tcp://*:5560"
+-- > bind sock "tcp://eth0:5560"
+-- > bind sock "tcp://127.0.0.1:5560"
+-- > bind sock "inproc://test"
+-- > bind sock "ipc:///tmp/test.ipc"
+--
+-- This function returns an 'Endpoint', which can be supplied
+-- to 'shutdown' to remove a connection.
+--
+-- See also: 'connect', 'shutdown'.
 bind :: Socket t -> String -> IO Endpoint
 bind (Socket _ sid) addr = withCString addr $ \adr -> Endpoint <$> c_nn_bind sid adr
 
+-- | Connects the socket to an endpoint.
+--
+-- e.g. :
+--
+-- > connect sock "tcp://localhost:5560"
+-- > connect sock "inproc://test"
+--
+-- See also: 'bind', 'shutdown'.
 connect :: Socket t -> String -> IO Endpoint
 connect (Socket _ sid) addr = withCString addr $ \adr -> Endpoint <$> c_nn_connect sid adr
 
+-- | Removes an endpoint from a socket.
+--
+-- See also: 'bind', 'connect'.
 shutdown :: Socket t -> Endpoint -> IO ()
 shutdown (Socket _ sid) (Endpoint eid) = do
     _ <- c_nn_shutdown sid eid
     return ()
 
-send :: (Sender t, SocketType t) => Socket t -> B.ByteString -> IO ()
+-- | Blocking function for sending a message
+--
+-- See also: 'recv', 'recv''.
+send :: (SendType t, SocketType t) => Socket t -> ByteString -> IO ()
 send (Socket _ sid) string = do
     _ <- U.unsafeUseAsCStringLen string (\(ptr, len) -> c_nn_send sid ptr (fromIntegral len) 0)
     return ()
 
-subscribe :: (Subscriber t, SocketType t) => Socket t -> B.ByteString -> IO ()
-subscribe (Socket t sid) string = do
-    _ <- U.unsafeUseAsCStringLen string $
-        \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_SUBSCRIBE) ptr (fromIntegral len)
-    return ()
-
-unsubscribe :: (Subscriber t, SocketType t) => Socket t -> B.ByteString -> IO ()
-unsubscribe (Socket t sid) string = do
-    _ <- U.unsafeUseAsCStringLen string $
-        \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_UNSUBSCRIBE) ptr (fromIntegral len)
-    return ()
-
-recv :: (Receiver t, SocketType t) => Socket t -> IO B.ByteString
+-- | Blocking receive.
+recv :: (RecvType t, SocketType t) => Socket t -> IO ByteString
 recv (Socket _ sid) =
     alloca $ \ptr -> do
         len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) 0
@@ -227,7 +350,8 @@ recv (Socket _ sid) =
         _ <- c_nn_freemsg buf
         return str
 
-recv' :: (Receiver t, SocketType t) => Socket t -> IO (Maybe B.ByteString)
+-- | Nonblocking receive function.
+recv' :: (RecvType t, SocketType t) => Socket t -> IO (Maybe ByteString)
 recv' (Socket _ sid) = do
     alloca $ \ptr -> do
         len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT)
@@ -239,11 +363,38 @@ recv' (Socket _ sid) = do
                 return $ Just str
             else return Nothing
 
+-- | Subscribe to a given subject string.
+subscribe :: (SubscriberType t, SocketType t) => Socket t -> ByteString -> IO ()
+subscribe (Socket t sid) string = do
+    _ <- U.unsafeUseAsCStringLen string $
+        \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_SUBSCRIBE) ptr (fromIntegral len)
+    return ()
+
+-- | Unsubscribes from a subject.
+unsubscribe :: (SubscriberType t, SocketType t) => Socket t -> ByteString -> IO ()
+unsubscribe (Socket t sid) string = do
+    _ <- U.unsafeUseAsCStringLen string $
+        \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_UNSUBSCRIBE) ptr (fromIntegral len)
+    return ()
+
+-- | Closes the socket. Any buffered inbound messages that were not yet
+-- received by the application will be discarded. The library will try to
+-- deliver any outstanding outbound messages for the time specified by
+-- NN_LINGER socket option. The call will block in the meantime.
 close :: Socket t -> IO ()
 close (Socket _ sid) = do
     _ <- c_nn_close sid
     return ()
 
+-- | To help with shutdown of multi-threaded programs nanomsg provides
+-- the term function which informs all the open sockets that process
+-- termination is underway.
+--
+-- If a socket is blocked inside a blocking function, such as recv,
+-- it will be unblocked and ETERM error will be returned to the user.
+--
+-- Similarly, any subsequent attempt to invoke a socket function other
+-- than close after term was called will result in ETERM error.
 term :: IO ()
 term = c_nn_term
 

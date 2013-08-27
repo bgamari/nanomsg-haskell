@@ -1,17 +1,19 @@
 name:                nanomsg-haskell
-version:             0.0.1
+version:             0.0.0.1
 synopsis:
   Bindings to the nanomsg messaging library
 description:
-  Initial draft of a nanomsg binding. This probably can't be considered
-  idiomatic, or even safe and usable for now.
+  This is a Haskell binding for the nanomsg messaging
+  library: <http://nanomsg.org/>.
 
-  Official library homepage: http://nanomsg.org/
+  The goal is to come up with a simple and robust interface. Low level
+  features like raw sockets and some non-essentials (e.g. devices)
+  will not be supported.
+
 homepage:            https://github.com/ivarnymoen/nanomsg-haskell
 license:             MIT
 license-file:        LICENSE
 author:              Ivar Nymoen <ivar.nymoen@gmail.com>
-maintainer:          Ivar Nymoen <ivar.nymoen@gmail.com>
 copyright:           Copyright (c) 2013 Ivar Nymoen
 category:            Network
 build-type:          Simple
