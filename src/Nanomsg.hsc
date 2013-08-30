@@ -58,11 +58,14 @@ import Data.ByteString (ByteString)
 --import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C
 import qualified Data.ByteString.Unsafe as U
-import Foreign
+import Foreign (peek, alloca, Ptr)
 import Foreign.C.Types
 import Foreign.C.String
 import Control.Applicative ( (<$>) )
 import Control.Exception.Base (bracket)
+import Control.Exception (throwIO)
+import Text.Printf (printf)
+
 
 -- | Socket for communication with exactly one peer. Each
 -- party can send messages at any time. If the peer is not
@@ -138,13 +141,13 @@ data Bus = Bus
 --
 -- Close connections using 'shutdown'.
 data Endpoint = Endpoint CInt
-    deriving (Eq)
+    deriving (Eq, Show)
 
 -- | Sockets are created by 'socket' and connections are established with 'connect' or 'bind'.
 --
 -- Free sockets using 'close'.
 data Socket t = Socket t CInt
-    deriving (Eq)
+    deriving (Eq, Show)
 
 -- | Typeclass used by all sockets, to extract their C type.
 class SocketType t where
@@ -217,6 +220,37 @@ class ReqType t
 instance ReqType Req
 
 
+-- * Error handling
+
+mkErrorString :: String -> IO String
+mkErrorString location = do
+    errNo <- c_nn_errno
+    errCString <- c_nn_strerror errNo
+    errString <- peekCString errCString
+    return $ printf "Nanomsg error at %s. Errno %d: %s" location (fromIntegral errNo :: Int) errString
+
+throwIfNegative :: (Ord a, Num a) => String -> IO a -> IO a
+throwIfNegative = throwIf (< 0)
+
+throwIfNegative_ :: (Ord a, Num a) => String -> IO a -> IO ()
+throwIfNegative_ = throwIf_ (< 0)
+
+throwIf :: (a -> Bool) -> String -> IO a -> IO a
+throwIf p location action = do
+    res <- action
+    if p res then throwErrno location else return res
+
+throwIf_ :: (a -> Bool) -> String -> IO a -> IO ()
+throwIf_ p location action = do
+    _ <- throwIf p location action
+    return ()
+
+throwErrno :: String -> IO a
+throwErrno location = do
+    s <- mkErrorString location
+    throwIO $ userError s
+
+
 -- FFI functions
 
 -- NN_EXPORT int nn_socket (int domain, int protocol);
@@ -237,14 +271,18 @@ foreign import ccall unsafe "nn.h nn_shutdown"
 
 -- NN_EXPORT int nn_send (int s, const void *buf, size_t len, int flags);
 foreign import ccall unsafe "nn.h nn_send"
-    c_nn_send :: CInt -> Ptr CChar -> CInt -> CInt -> IO CInt
+    c_nn_send :: CInt -> CString -> CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
+-- With this binding, the 2nd argument is just a pointer to our pre-allocated buffer
 --foreign import ccall unsafe "nn.h nn_recv"
 --    c_nn_recv :: CInt -> Ptr CChar -> CInt -> CInt -> IO CInt
 
+-- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
+-- Here, the 2nd argument is a pointer to a pointer. Nanomsg updates the pointer
+-- with the address of its allocated buffer
 foreign import ccall unsafe "nn.h nn_recv"
-    c_nn_recv_foreignbuf :: CInt -> Ptr (Ptr CChar) -> CInt -> CInt -> IO CInt
+    c_nn_recv_foreignbuf :: CInt -> Ptr CString -> CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_freemsg (void *msg);
 foreign import ccall unsafe "nn.h nn_freemsg"
@@ -260,11 +298,24 @@ foreign import ccall unsafe "nn.h nn_term"
 
 -- NN_EXPORT int nn_setsockopt (int s, int level, int option, const void *optval, size_t optvallen);
 foreign import ccall unsafe "nn.h nn_setsockopt"
-    c_nn_setsockopt :: CInt -> CInt -> CInt -> Ptr CChar -> CInt -> IO CInt
+    c_nn_setsockopt :: CInt -> CInt -> CInt -> CString -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_getsockopt (int s, int level, int option, void *optval, size_t *optvallen);
 foreign import ccall unsafe "nn.h nn_getsockopt"
-    c_nn_getsockopt :: CInt -> CInt -> CInt -> Ptr CChar -> CInt -> IO CInt
+    c_nn_getsockopt :: CInt -> CInt -> CInt -> CString -> CInt -> IO CInt
+
+-- /*  Resolves system errors and native errors to human-readable string.        */
+-- NN_EXPORT const char *nn_strerror (int errnum);
+foreign import ccall unsafe "nn.h nn_strerror"
+    c_nn_strerror :: CInt -> IO CString
+
+-- /*  This function retrieves the errno as it is known to the library.          */
+-- /*  The goal of this function is to make the code 100% portable, including    */
+-- /*  where the library is compiled with certain CRT library (on Windows) and   */
+-- /*  linked to an application that uses different CRT library.                 */
+-- NN_EXPORT int nn_errno (void);
+foreign import ccall unsafe "nn.h nn_errno"
+    c_nn_errno :: IO CInt
 
 {-
 
@@ -272,19 +323,6 @@ Unbound FFI functions:
 
 NN_EXPORT int nn_sendmsg (int s, const struct nn_msghdr *msghdr, int flags);
 NN_EXPORT int nn_recvmsg (int s, struct nn_msghdr *msghdr, int flags);
-
-/*  This function retrieves the errno as it is known to the library.          */
-/*  The goal of this function is to make the code 100% portable, including    */
-/*  where the library is compiled with certain CRT library (on Windows) and   */
-/*  linked to an application that uses different CRT library.                 */
-NN_EXPORT int nn_errno (void);
-foreign import ccall unsafe "nn.h nn_errno"
-    c_nn_errno :: IO CInt
-
-/*  Resolves system errors and native errors to human-readable string.        */
-NN_EXPORT const char *nn_strerror (int errnum);
-foreign import ccall unsafe "nn.h nn_strerror"
-    c_nn_strerror :: CInt -> IO CString
 
 NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -}
@@ -294,7 +332,7 @@ NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -- See also: 'close'.
 socket :: (SocketType t) => t -> IO (Socket t)
 socket t = do
-    sid <- c_nn_socket (#const AF_SP) (socketType t)
+    sid <- throwIfNegative "socket" $ c_nn_socket (#const AF_SP) (socketType t)
     return $ Socket t sid
 
 -- | Creates a socket and runs your action with it.
@@ -326,7 +364,10 @@ withSocket t = bracket (socket t) close
 --
 -- See also: 'connect', 'shutdown'.
 bind :: Socket t -> String -> IO Endpoint
-bind (Socket _ sid) addr = withCString addr $ \adr -> Endpoint <$> c_nn_bind sid adr
+bind (Socket _ sid) addr =
+    withCString addr $ \adr -> do
+        epid <- throwIfNegative "bind" $ c_nn_bind sid adr
+        return $ Endpoint epid
 
 -- | Connects the socket to an endpoint.
 --
@@ -337,69 +378,72 @@ bind (Socket _ sid) addr = withCString addr $ \adr -> Endpoint <$> c_nn_bind sid
 --
 -- See also: 'bind', 'shutdown'.
 connect :: Socket t -> String -> IO Endpoint
-connect (Socket _ sid) addr = withCString addr $ \adr -> Endpoint <$> c_nn_connect sid adr
+connect (Socket _ sid) addr =
+    withCString addr $ \adr -> do
+        epid <- throwIfNegative "connect" $ c_nn_connect sid adr
+        return $ Endpoint epid
 
 -- | Removes an endpoint from a socket.
 --
 -- See also: 'bind', 'connect'.
 shutdown :: Socket t -> Endpoint -> IO ()
-shutdown (Socket _ sid) (Endpoint eid) = do
-    _ <- c_nn_shutdown sid eid
-    return ()
+shutdown (Socket _ sid) (Endpoint eid) =
+    throwIfNegative_ "shutdown" $ c_nn_shutdown sid eid
 
 -- | Blocking function for sending a message
 --
 -- See also: 'recv', 'recv''.
 send :: (SendType t, SocketType t) => Socket t -> ByteString -> IO ()
-send (Socket _ sid) string = do
-    _ <- U.unsafeUseAsCStringLen string (\(ptr, len) -> c_nn_send sid ptr (fromIntegral len) 0)
-    return ()
+send (Socket _ sid) string =
+    throwIfNegative_ "send" $
+        U.unsafeUseAsCStringLen string (\(ptr, len) -> c_nn_send sid ptr (fromIntegral len) 0)
 
 -- | Blocking receive.
 recv :: (RecvType t, SocketType t) => Socket t -> IO ByteString
 recv (Socket _ sid) =
     alloca $ \ptr -> do
-        len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) 0
+        len <- throwIfNegative "recv" $ c_nn_recv_foreignbuf sid ptr (#const NN_MSG) 0
         buf <- peek ptr
         str <- C.packCStringLen (buf, fromIntegral len)
-        _ <- c_nn_freemsg buf
+        throwIfNegative_ "recv freeing message buffer" $ c_nn_freemsg buf
         return str
 
 -- | Nonblocking receive function.
 recv' :: (RecvType t, SocketType t) => Socket t -> IO (Maybe ByteString)
-recv' (Socket _ sid) = do
+recv' (Socket _ sid) =
     alloca $ \ptr -> do
         len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT)
         if len >= 0
             then do
                 buf <- peek ptr
                 str <- C.packCStringLen (buf, fromIntegral len)
-                _ <- c_nn_freemsg buf
+                throwIfNegative_ "recv' freeing message buffer" $ c_nn_freemsg buf
                 return $ Just str
-            else return Nothing
+            else do
+                errno <- c_nn_errno
+                if errno == (#const EAGAIN)
+                    then return Nothing
+                    else throwErrno "recv'"
 
 -- | Subscribe to a given subject string.
 subscribe :: (SubscriberType t, SocketType t) => Socket t -> ByteString -> IO ()
-subscribe (Socket t sid) string = do
-    _ <- U.unsafeUseAsCStringLen string $
+subscribe (Socket t sid) string =
+    throwIfNegative_ "subscribe" <$> U.unsafeUseAsCStringLen string $
         \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_SUBSCRIBE) ptr (fromIntegral len)
-    return ()
 
 -- | Unsubscribes from a subject.
 unsubscribe :: (SubscriberType t, SocketType t) => Socket t -> ByteString -> IO ()
-unsubscribe (Socket t sid) string = do
-    _ <- U.unsafeUseAsCStringLen string $
+unsubscribe (Socket t sid) string =
+    throwIfNegative_ "unsubscribe" <$> U.unsafeUseAsCStringLen string $
         \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_UNSUBSCRIBE) ptr (fromIntegral len)
-    return ()
 
 -- | Closes the socket. Any buffered inbound messages that were not yet
 -- received by the application will be discarded. The library will try to
 -- deliver any outstanding outbound messages for the time specified by
 -- NN_LINGER socket option. The call will block in the meantime.
 close :: Socket t -> IO ()
-close (Socket _ sid) = do
-    _ <- c_nn_close sid
-    return ()
+close (Socket _ sid) =
+    throwIfNegative_ "close" $ c_nn_close sid
 
 -- | To help with shutdown of multi-threaded programs nanomsg provides
 -- the term function which informs all the open sockets that process
