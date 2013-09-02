@@ -1,7 +1,7 @@
 name:                nanomsg-haskell
 version:             0.0.0.1
 synopsis:
-  Bindings to the nanomsg messaging library
+  Bindings to the nanomsg library
 description:
   This is a Haskell binding for the nanomsg messaging
   library: <http://nanomsg.org/>.
