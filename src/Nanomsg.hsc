@@ -10,7 +10,7 @@
 --
 -- The goal is to come up with a simple and robust interface. Low level
 -- features like raw sockets and some non-essentials (e.g. devices)
--- will not be supported.
+-- will not be supported. Sockets are typed, transports are not.
 --
 -- Socket type documentation is adapted or quoted verbatim from the
 -- nanomsg manual. Please refer to nanomsg.org for information on
@@ -44,6 +44,25 @@ module Nanomsg
         , shutdown
         , close
         , term
+        -- ** Socket option accessors and mutators
+        , linger
+        , setLinger
+        , sndBuf
+        , setSndBuf
+        , rcvBuf
+        , setRcvBuf
+        , reconnectInterval
+        , setReconnectInterval
+        , reconnectIntervalMax
+        , setReconnectIntervalMax
+        , sndPrio
+        , setSndPrio
+        , ipv4Only
+        , setIpv4Only
+        , requestResendInterval
+        , setRequestResendInterval
+        , tcpNoDelay
+        , setTcpNoDelay
     ) where
 
 #include "nanomsg/nn.h"
@@ -53,19 +72,23 @@ module Nanomsg
 #include "nanomsg/survey.h"
 #include "nanomsg/pipeline.h"
 #include "nanomsg/bus.h"
+#include "nanomsg/tcp.h"
 
 import Data.ByteString (ByteString)
 --import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C
 import qualified Data.ByteString.Unsafe as U
-import Foreign (peek, alloca, Ptr)
+import Foreign (peek, poke, alloca)
+import Foreign.Ptr
 import Foreign.C.Types
 import Foreign.C.String
+import Foreign.Storable (sizeOf)
 import Control.Applicative ( (<$>) )
 import Control.Exception.Base (bracket)
 import Control.Exception (throwIO)
 import Text.Printf (printf)
 
+-- * Data and typedefs
 
 -- | Socket for communication with exactly one peer. Each
 -- party can send messages at any time. If the peer is not
@@ -227,7 +250,7 @@ mkErrorString location = do
     errNo <- c_nn_errno
     errCString <- c_nn_strerror errNo
     errString <- peekCString errCString
-    return $ printf "Nanomsg error at %s. Errno %d: %s" location (fromIntegral errNo :: Int) errString
+    return $ printf "nanomsg-haskell error at %s. Errno %d: %s" location (fromIntegral errNo :: Int) errString
 
 throwIfNegative :: (Ord a, Num a) => String -> IO a -> IO a
 throwIfNegative = throwIf (< 0)
@@ -251,7 +274,7 @@ throwErrno location = do
     throwIO $ userError s
 
 
--- FFI functions
+-- * FFI functions
 
 -- NN_EXPORT int nn_socket (int domain, int protocol);
 foreign import ccall unsafe "nn.h nn_socket"
@@ -274,13 +297,6 @@ foreign import ccall unsafe "nn.h nn_send"
     c_nn_send :: CInt -> CString -> CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
--- With this binding, the 2nd argument is just a pointer to our pre-allocated buffer
---foreign import ccall unsafe "nn.h nn_recv"
---    c_nn_recv :: CInt -> Ptr CChar -> CInt -> CInt -> IO CInt
-
--- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
--- Here, the 2nd argument is a pointer to a pointer. Nanomsg updates the pointer
--- with the address of its allocated buffer
 foreign import ccall unsafe "nn.h nn_recv"
     c_nn_recv_foreignbuf :: CInt -> Ptr CString -> CInt -> CInt -> IO CInt
 
@@ -298,11 +314,11 @@ foreign import ccall unsafe "nn.h nn_term"
 
 -- NN_EXPORT int nn_setsockopt (int s, int level, int option, const void *optval, size_t optvallen);
 foreign import ccall unsafe "nn.h nn_setsockopt"
-    c_nn_setsockopt :: CInt -> CInt -> CInt -> CString -> CInt -> IO CInt
+    c_nn_setsockopt :: CInt -> CInt -> CInt -> Ptr a -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_getsockopt (int s, int level, int option, void *optval, size_t *optvallen);
 foreign import ccall unsafe "nn.h nn_getsockopt"
-    c_nn_getsockopt :: CInt -> CInt -> CInt -> CString -> CInt -> IO CInt
+    c_nn_getsockopt :: CInt -> CInt -> CInt -> Ptr CInt -> Ptr CInt -> IO CInt
 
 -- /*  Resolves system errors and native errors to human-readable string.        */
 -- NN_EXPORT const char *nn_strerror (int errnum);
@@ -326,6 +342,8 @@ NN_EXPORT int nn_recvmsg (int s, struct nn_msghdr *msghdr, int flags);
 
 NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -}
+
+-- * General functions
 
 -- | Creates a socket. Connections are formed using 'bind' or 'connect'.
 --
@@ -428,14 +446,12 @@ recv' (Socket _ sid) =
 -- | Subscribe to a given subject string.
 subscribe :: (SubscriberType t, SocketType t) => Socket t -> ByteString -> IO ()
 subscribe (Socket t sid) string =
-    throwIfNegative_ "subscribe" <$> U.unsafeUseAsCStringLen string $
-        \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_SUBSCRIBE) ptr (fromIntegral len)
+    setOption (Socket t sid) (socketType t) (#const NN_SUB_SUBSCRIBE) (StringOption string)
 
 -- | Unsubscribes from a subject.
 unsubscribe :: (SubscriberType t, SocketType t) => Socket t -> ByteString -> IO ()
 unsubscribe (Socket t sid) string =
-    throwIfNegative_ "unsubscribe" <$> U.unsafeUseAsCStringLen string $
-        \(ptr, len) -> c_nn_setsockopt sid (socketType t) (#const NN_SUB_UNSUBSCRIBE) ptr (fromIntegral len)
+    setOption (Socket t sid) (socketType t) (#const NN_SUB_UNSUBSCRIBE) (StringOption string)
 
 -- | Closes the socket. Any buffered inbound messages that were not yet
 -- received by the application will be discarded. The library will try to
@@ -445,15 +461,218 @@ close :: Socket t -> IO ()
 close (Socket _ sid) =
     throwIfNegative_ "close" $ c_nn_close sid
 
--- | To help with shutdown of multi-threaded programs nanomsg provides
--- the term function which informs all the open sockets that process
--- termination is underway.
---
--- If a socket is blocked inside a blocking function, such as recv,
--- it will be unblocked and ETERM error will be returned to the user.
---
--- Similarly, any subsequent attempt to invoke a socket function other
--- than close after term was called will result in ETERM error.
+-- | Switches nanomsg into shutdown modus and interrupts any waiting
+-- function calls.
 term :: IO ()
 term = c_nn_term
+
+
+-- * Socket option accessors and mutators
+
+data SocketOption = IntOption Int | StringOption ByteString
+    deriving (Show)
+
+-- Used for setting a socket option.
+setOption :: Socket t -> CInt -> CInt -> SocketOption -> IO ()
+
+setOption (Socket _ sid) level option (IntOption val) =
+    alloca $ \ptr -> do
+        poke ptr (fromIntegral val :: CInt)
+        let cintSize = fromIntegral $ sizeOf (fromIntegral val :: CInt) :: CInt
+        throwIfNegative_ "setOption (int)" $ c_nn_setsockopt sid level option ptr cintSize
+
+setOption (Socket _ sid) level option (StringOption str) =
+    throwIfNegative_ "setOption (string)" <$> U.unsafeUseAsCStringLen str $
+        \(ptr, len) -> c_nn_setsockopt sid level option ptr (fromIntegral len)
+
+-- Reads a socket option.
+getOption :: Socket t -> CInt -> CInt -> IO CInt
+getOption (Socket _ sid) level option =
+    alloca $ \ptr ->
+        alloca $ \sizePtr -> do
+            let a = 1 :: CInt
+            let cintSize = fromIntegral $ sizeOf a
+            poke sizePtr cintSize
+            throwIfNegative_ "getOption" $ c_nn_getsockopt sid level option ptr sizePtr
+            value <- peek ptr
+            size <- peek sizePtr
+            if cintSize /= size then throwErrno "getOption: output size not as expected" else return value
+
+
+-- | Specifies how long should the socket try to send pending outbound
+-- messages after close has been called, in milliseconds.
+--
+-- Negative value means infinite linger. Default value is 1000 (1 second).
+linger :: Socket t -> IO Int
+linger s =
+    fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_LINGER)
+
+-- | Specifies how long should the socket try to send pending outbound
+-- messages after close has been called, in milliseconds.
+--
+-- Negative value means infinite linger. Default value is 1000 (1 second).
+setLinger :: Socket t -> Int -> IO ()
+setLinger s val =
+    setOption s (#const NN_SOL_SOCKET) (#const NN_LINGER) (IntOption val)
+
+-- | Size of the send buffer, in bytes. To prevent blocking for messages
+-- larger than the buffer, exactly one message may be buffered in addition
+-- to the data in the send buffer.
+--
+-- Default value is 128kB.
+sndBuf :: Socket t -> IO Int
+sndBuf s =
+    fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_SNDBUF)
+
+-- | Size of the send buffer, in bytes. To prevent blocking for messages
+-- larger than the buffer, exactly one message may be buffered in addition
+-- to the data in the send buffer.
+--
+-- Default value is 128kB.
+setSndBuf :: Socket t -> Int -> IO ()
+setSndBuf s val =
+    setOption s (#const NN_SOL_SOCKET) (#const NN_SNDBUF) (IntOption val)
+
+-- | Size of the receive buffer, in bytes. To prevent blocking for messages
+-- larger than the buffer, exactly one message may be buffered in addition
+-- to the data in the receive buffer.
+--
+-- Default value is 128kB.
+rcvBuf :: Socket t -> IO Int
+rcvBuf s =
+    fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_RCVBUF)
+
+-- | Size of the receive buffer, in bytes. To prevent blocking for messages
+-- larger than the buffer, exactly one message may be buffered in addition
+-- to the data in the receive buffer.
+--
+-- Default value is 128kB.
+setRcvBuf :: Socket t -> Int -> IO ()
+setRcvBuf s val =
+    setOption s (#const NN_SOL_SOCKET) (#const NN_RCVBUF) (IntOption val)
+
+-- Think I'll just skip these. There's recv' for nonblocking receive, and
+-- adding a return value to send seems awkward.
+--sendTimeout
+--recvTimeout
+
+-- | For connection-based transports such as TCP, this option specifies
+-- how long to wait, in milliseconds, when connection is broken before
+-- trying to re-establish it.
+--
+-- Note that actual reconnect interval may be randomised to some extent
+-- to prevent severe reconnection storms.
+--
+-- Default value is 100 (0.1 second).
+reconnectInterval :: Socket t -> IO Int
+reconnectInterval s =
+    fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_RECONNECT_IVL)
+
+-- | For connection-based transports such as TCP, this option specifies
+-- how long to wait, in milliseconds, when connection is broken before
+-- trying to re-establish it.
+--
+-- Note that actual reconnect interval may be randomised to some extent
+-- to prevent severe reconnection storms.
+--
+-- Default value is 100 (0.1 second).
+setReconnectInterval :: Socket t -> Int -> IO ()
+setReconnectInterval s val =
+    setOption s (#const NN_SOL_SOCKET) (#const NN_RECONNECT_IVL) (IntOption val)
+
+-- | This option is to be used only in addition to NN_RECONNECT_IVL option.
+-- It specifies maximum reconnection interval. On each reconnect attempt,
+-- the previous interval is doubled until NN_RECONNECT_IVL_MAX is reached.
+--
+-- Value of zero means that no exponential backoff is performed and reconnect
+-- interval is based only on NN_RECONNECT_IVL. If NN_RECONNECT_IVL_MAX is
+-- less than NN_RECONNECT_IVL, it is ignored.
+--
+-- Default value is 0.
+reconnectIntervalMax :: Socket t -> IO Int
+reconnectIntervalMax s =
+    fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_RECONNECT_IVL_MAX)
+
+-- | This option is to be used only in addition to NN_RECONNECT_IVL option.
+-- It specifies maximum reconnection interval. On each reconnect attempt,
+-- the previous interval is doubled until NN_RECONNECT_IVL_MAX is reached.
+--
+-- Value of zero means that no exponential backoff is performed and reconnect
+-- interval is based only on NN_RECONNECT_IVL. If NN_RECONNECT_IVL_MAX is
+-- less than NN_RECONNECT_IVL, it is ignored.
+--
+-- Default value is 0.
+setReconnectIntervalMax :: Socket t -> Int -> IO ()
+setReconnectIntervalMax s val =
+    setOption s (#const NN_SOL_SOCKET) (#const NN_RECONNECT_IVL_MAX) (IntOption val)
+
+-- | Sets outbound priority for endpoints subsequently added to the socket.
+-- This option has no effect on socket types that send messages to all the
+-- peers. However, if the socket type sends each message to a single peer
+-- (or a limited set of peers), peers with high priority take precedence over
+-- peers with low priority.
+--
+-- Highest priority is 1, lowest priority is 16. Default value is 8.
+sndPrio :: Socket t -> IO Int
+sndPrio s =
+    fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_SNDPRIO)
+
+-- | Sets outbound priority for endpoints subsequently added to the socket.
+-- This option has no effect on socket types that send messages to all the
+-- peers. However, if the socket type sends each message to a single peer
+-- (or a limited set of peers), peers with high priority take precedence over
+-- peers with low priority.
+--
+-- Highest priority is 1, lowest priority is 16. Default value is 8.
+setSndPrio :: Socket t -> Int -> IO ()
+setSndPrio s val =
+    setOption s (#const NN_SOL_SOCKET) (#const NN_SNDPRIO) (IntOption val)
+
+-- | If set to 1, only IPv4 addresses are used. If set to 0, both IPv4
+-- and IPv6 addresses are used.
+--
+-- Default value is 1.
+ipv4Only :: Socket t -> IO Int
+ipv4Only s =
+    fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_IPV4ONLY)
+
+-- | If set to 1, only IPv4 addresses are used. If set to 0, both IPv4
+-- and IPv6 addresses are used.
+--
+-- Default value is 1.
+setIpv4Only :: Socket t -> Int -> IO ()
+setIpv4Only s val =
+    setOption s (#const NN_SOL_SOCKET) (#const NN_IPV4ONLY) (IntOption val)
+
+-- | This option is defined on the full REQ socket. If reply is not received
+-- in specified amount of milliseconds, the request will be automatically
+-- resent.
+--
+-- Default value is 60000 (1 minute).
+requestResendInterval :: (ReqType t) => Socket t -> IO Int
+requestResendInterval s =
+    fromIntegral <$> getOption s (#const NN_REQ) (#const NN_REQ_RESEND_IVL)
+
+-- | This option is defined on the full REQ socket. If reply is not received
+-- in specified amount of milliseconds, the request will be automatically
+-- resent.
+--
+-- Default value is 60000 (1 minute).
+setRequestResendInterval :: (ReqType t) => Socket t -> Int -> IO ()
+setRequestResendInterval s val =
+    setOption s (#const NN_REQ) (#const NN_REQ_RESEND_IVL) (IntOption val)
+
+-- | This option, when set to 1, disables Nagle's algorithm.
+--
+-- Default value is 0.
+tcpNoDelay :: Socket t -> IO Int
+tcpNoDelay s =
+    fromIntegral <$> getOption s (#const NN_TCP) (#const NN_TCP_NODELAY)
+
+-- | This option, when set to 1, disables Nagle's algorithm.
+--
+-- Default value is 0.
+setTcpNoDelay :: Socket t -> Int -> IO ()
+setTcpNoDelay s val =
+    setOption s (#const NN_TCP) (#const NN_TCP_NODELAY) (IntOption val)
 
