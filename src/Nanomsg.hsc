@@ -92,7 +92,7 @@ import Control.Monad (void)
 import Text.Printf (printf)
 import GHC.Conc (threadWaitRead, threadWaitWrite)
 import System.Posix.Types (Fd(..))
-import Data.Typeable (cast)
+
 
 -- * Data and typedefs
 
