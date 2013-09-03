@@ -50,9 +50,9 @@ source-repository head
   type:               git
   location:           https://github.com/ivarnymoen/nanomsg-haskell
 
-benchmark allocation
+benchmark send-messages
   type:           exitcode-stdio-1.0
-  main-is:        Allocation.hs
+  main-is:        SendMessages.hs
   ghc-options:    -Wall -O2 -threaded
   hs-source-dirs: benchmarks
   build-depends:
