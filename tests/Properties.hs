@@ -31,7 +31,7 @@ prop_PubSub = monadicIO $ do
         _ <- bind pub "inproc://pubsub"
         sub1 <- socket Sub
         _ <- connect sub1 "inproc://pubsub"
-        _ <- subscribe sub1 $ C.pack ""
+        _ <- subscribe sub1 $ C.pack ""
         sub2 <- socket Sub
         _ <- connect sub2 "inproc://pubsub"
         _ <- subscribe sub2 $ C.pack ""
