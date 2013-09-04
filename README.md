@@ -24,6 +24,7 @@ Server:
     import Nanomsg
     import qualified Data.ByteString.Char8 as C
     import Control.Monad (mapM_)
+    import Control.Concurrent (threadDelay)
 
     main :: IO ()
     main = do
@@ -32,6 +33,7 @@ Server:
             mapM_ (\num -> sendNumber s num) (cycle [1..1000000])
         where
             sendNumber s number = do
+                threadDelay 1000        -- let's conserve some cycles
                 let numAsString = show number
                 send s (C.pack numAsString)
 
@@ -59,6 +61,7 @@ Nonblocking client:
     import Nanomsg
     import qualified Data.ByteString.Char8 as C
     import Control.Monad (forever)
+    import Control.Concurrent (threadDelay)
 
     main :: IO ()
     main =
@@ -66,6 +69,7 @@ Nonblocking client:
             _ <- connect s "tcp://localhost:5560"
             _ <- subscribe s $ C.pack ""
             forever $ do
+                threadDelay 700           -- let's conserve some cycles
                 msg <- recv' s
                 C.putStrLn $ case msg of
                     Nothing -> C.pack "No message"
