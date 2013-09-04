@@ -2,9 +2,16 @@
 
 This is a Haskell binding for the nanomsg library: <http://nanomsg.org/>.
 
-The goal is to create a simple and usable interface to nanomsg, not to
-provide a complete mapping of the C api.
+The goal is to provide a simple and usable interface to nanomsg, not a
+complete mapping of the C api.
 
+There's support for [blocking](http://hackage.haskell.org/packages/archive/base/latest/doc/html/Control-Concurrent.html#v:threadWaitRead) send and recv, a non-blocking receive,
+all the socket types and the methods you need to wire them up and
+tear them down again.
+
+Most socket options are available through accessor and mutator
+functions. Sockets are typed, transports are not, as I'm not sure
+if typed connection strings are really worth the hassle.
 
 # Usage
 

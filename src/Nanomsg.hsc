@@ -90,7 +90,7 @@ import Control.Exception (Exception, throwIO)
 import Data.Typeable (Typeable)
 import Control.Monad (void)
 import Text.Printf (printf)
-import GHC.Conc (threadWaitRead, threadWaitWrite)
+import Control.Concurrent (threadWaitRead, threadWaitWrite)
 import System.Posix.Types (Fd(..))
 
 
