@@ -86,7 +86,7 @@ import Foreign.C.String
 import Foreign.Storable (sizeOf)
 import Control.Applicative ( (<$>) )
 import Control.Exception.Base (bracket)
-import Control.Exception (Exception(..), throwIO)
+import Control.Exception (Exception, throwIO)
 import Data.Typeable (Typeable)
 import Control.Monad (void)
 import Text.Printf (printf)
