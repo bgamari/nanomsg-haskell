@@ -290,7 +290,7 @@ throwIfNegative = throwIf (< 0)
 throwIfNegative_ :: (Ord a, Num a) => String -> IO a -> IO ()
 throwIfNegative_ = throwIf_ (< 0)
 
-throwIfRetry :: (a -> Bool) -> String -> IO a -> IO a
+throwIfRetry :: (Ord a, Num a) => (a -> Bool) -> String -> IO a -> IO a
 throwIfRetry p loc f = do
     res <- f
     if p res
@@ -301,7 +301,7 @@ throwIfRetry p loc f = do
                 else throwErrno loc
         else return res
 
-throwIfRetry_ :: (a -> Bool) -> String -> IO a -> IO ()
+throwIfRetry_ :: (Ord a, Num a) => (a -> Bool) -> String -> IO a -> IO ()
 throwIfRetry_ p loc f = void $ throwIfRetry p loc f
 
 throwIfNegativeRetry :: (Ord a, Num a) => String -> IO a -> IO a
@@ -310,7 +310,7 @@ throwIfNegativeRetry = throwIfRetry (< 0)
 throwIfNegativeRetry_ :: (Ord a, Num a) => String -> IO a -> IO ()
 throwIfNegativeRetry_ = throwIfRetry_ (< 0)
 
-throwIfRetryMayBlock :: (a -> Bool) -> String -> IO a -> IO b -> IO a
+throwIfRetryMayBlock :: (Ord a, Num a) => (a -> Bool) -> String -> IO a -> IO b -> IO a
 throwIfRetryMayBlock p loc f on_block = do
     res <- f
     if p res
@@ -323,7 +323,7 @@ throwIfRetryMayBlock p loc f on_block = do
                 else throwErrno loc
         else return res
 
-throwIfRetryMayBlock_ :: (a -> Bool) -> String -> IO a -> IO b -> IO ()
+throwIfRetryMayBlock_ :: (Ord a, Num a) => (a -> Bool) -> String -> IO a -> IO b -> IO ()
 throwIfRetryMayBlock_ p loc f on_block = void $ throwIfRetryMayBlock p loc f on_block
 
 throwIfNegativeRetryMayBlock :: (Ord a, Num a) => String -> IO a -> IO b -> IO a
