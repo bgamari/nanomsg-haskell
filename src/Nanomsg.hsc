@@ -377,9 +377,7 @@ foreign import ccall unsafe "nn.h nn_setsockopt"
 
 -- NN_EXPORT int nn_getsockopt (int s, int level, int option, void *optval, size_t *optvallen);
 foreign import ccall unsafe "nn.h nn_getsockopt"
-    c_nn_getsockopt :: CInt -> CInt -> CInt -> Ptr CInt -> Ptr CInt -> IO CInt
-foreign import ccall unsafe "nn.h nn_getsockopt"
-    c_nn_getsockopt_fd :: CInt -> CInt -> CInt -> Ptr Fd -> Ptr CInt -> IO CInt
+    c_nn_getsockopt :: CInt -> CInt -> CInt -> Ptr a -> Ptr CInt -> IO CInt
 
 -- /*  Resolves system errors and native errors to human-readable string.        */
 -- NN_EXPORT const char *nn_strerror (int errnum);
@@ -561,7 +559,7 @@ getOption (Socket _ sid) level option =
             let a = 1 :: CInt
             let cintSize = fromIntegral $ sizeOf a
             poke sizePtr cintSize
-            throwIfNegative_ "getOption" $ c_nn_getsockopt sid level option ptr sizePtr
+            throwIfNegative_ "getOption" $ c_nn_getsockopt sid level option (ptr :: Ptr CInt) sizePtr
             value <- peek ptr
             size <- peek sizePtr
             if cintSize /= size then throwErrno "getOption: output size not as expected" else return value
@@ -574,7 +572,7 @@ getOptionFd (Socket _ sid) option =
             let a = 1 :: Fd
             let fdSize = fromIntegral $ sizeOf a
             poke sizePtr fdSize
-            throwIfNegative_ "getFd" $ c_nn_getsockopt_fd sid (#const NN_SOL_SOCKET) option ptr sizePtr
+            throwIfNegative_ "getFd" $ c_nn_getsockopt sid (#const NN_SOL_SOCKET) option (ptr :: Ptr Fd) sizePtr
             value <- peek ptr
             size <- peek sizePtr
             if fdSize /= size then throwErrno "getOptionFd: output size not as expected" else return value
