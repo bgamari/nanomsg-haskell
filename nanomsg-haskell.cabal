@@ -6,9 +6,13 @@ description:
   This is a Haskell binding for the nanomsg messaging
   library: <http://nanomsg.org/>.
 
-  The goal is to come up with a simple and robust interface. Low level
-  features like raw sockets and some non-essentials (e.g. devices)
-  will not be supported.
+  There's support for blocking send and recv, a non-blocking receive,
+  and for all the socket types and the functions you need to wire
+  them up and tear them down again.
+
+  Most sockets options are available through accessor and mutator
+  functions. Sockets are typed, transports are not, as I'm not sure
+  if typed connection strings are really worth the hassle.
 
 homepage:            https://github.com/ivarnymoen/nanomsg-haskell
 license:             MIT
