@@ -17,7 +17,8 @@ description:
 homepage:            https://github.com/ivarnymoen/nanomsg-haskell
 license:             MIT
 license-file:        LICENSE
-author:              Ivar Nymoen <ivar.nymoen@gmail.com>
+author:              <ivar.nymoen@gmail.com>
+maintainer:          <ivar.nymoen@gmail.com>
 copyright:           Copyright (c) 2013 Ivar Nymoen
 category:            Network
 build-type:          Simple
@@ -25,10 +26,10 @@ cabal-version:       >=1.8
 
 library
   hs-source-dirs:      src
-  ghc-options:         -Wall -O2 -threaded
+  ghc-options:         -Wall -O2
   exposed-modules:     Nanomsg
   --other-modules:       Nanomsg.Internal
-  extensions:          ForeignFunctionInterface
+  extensions:          ForeignFunctionInterface, DeriveDataTypeable
   includes:            nanomsg/nn.h
   extra-libraries:     nanomsg
   build-depends:
@@ -39,7 +40,7 @@ test-suite tests
   type:               exitcode-stdio-1.0
   hs-source-dirs:     tests
   main-is:            Properties.hs
-  ghc-options:        -Wall -threaded -O2 -rtsopts
+  ghc-options:        -Wall -threaded -O2
   build-depends:
     base,
     nanomsg-haskell,
