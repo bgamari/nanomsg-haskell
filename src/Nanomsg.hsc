@@ -316,7 +316,7 @@ throwIfRetryMayBlock p loc f on_block = do
     if p res
         then do
             err <- c_nn_errno
-            if err == (#const EAGAIN) || err == (#const EINTR) || err == (#const EWOULDBLOCK)
+            if err `elem` [ (#const EAGAIN), (#const EINTR), (#const EWOULDBLOCK) ]
                 then do
                     _ <- on_block
                     throwIfRetryMayBlock p loc f on_block

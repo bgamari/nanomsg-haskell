@@ -11,7 +11,7 @@ pair size count = do
     _ <- bind sender "inproc://pairtest"
     recipient <- socket Pair
     _ <- connect recipient "inproc://pairtest"
-    let msg = C.pack $ take size $ repeat 'a'
+    let msg = C.pack $ replicate size 'a'
     replicateM_ count (send sender msg >> recv recipient)
     close sender
     close recipient
