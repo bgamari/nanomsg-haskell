@@ -28,15 +28,20 @@ prop_PubSub = monadicIO $ do
     pre $ not (null msgs)
     res <- run $ do
         pub <- socket Pub
-        _ <- bind pub "inproc://pubsub"
+        ep1 <- bind pub "inproc://pubsub"
         sub1 <- socket Sub
-        _ <- connect sub1 "inproc://pubsub"
-        _ <- subscribe sub1 $ C.pack ""
+        ep2 <- connect sub1 "inproc://pubsub"
+        subscribe sub1 $ C.pack ""
         sub2 <- socket Sub
-        _ <- connect sub2 "inproc://pubsub"
-        _ <- subscribe sub2 $ C.pack ""
+        ep3 <- connect sub2 "inproc://pubsub"
+        subscribe sub2 $ C.pack ""
         threadDelay 1000
         r <- mapM (sendMsg pub sub1 sub2) msgs
+        unsubscribe sub2 $ C.pack ""
+        unsubscribe sub1 $ C.pack ""
+        shutdown sub2 ep3
+        shutdown sub1 ep2
+        shutdown pub ep1
         close pub
         close sub1
         close sub2
