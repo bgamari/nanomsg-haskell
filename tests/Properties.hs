@@ -109,7 +109,8 @@ prop_Pipeline = monadicIO $ do
                 d <- recv' pull2
                 e <- recv' pull2
                 f <- recv' pull2
-                return $ all (== msg) (catMaybes [a, b, c, d, e, f])
+                let xs = catMaybes [a, b, c, d, e, f]
+                return $ all (== msg) xs && (length xs == 3)
 
 -- test Req and Rep sockets
 prop_ReqRep :: Property
