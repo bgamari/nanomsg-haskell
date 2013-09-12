@@ -175,13 +175,13 @@ data Endpoint = Endpoint CInt
 -- | Sockets are created by 'socket' and connections are established with 'connect' or 'bind'.
 --
 -- Free sockets using 'close'.
-data Socket t = Socket t CInt
+data Socket a = Socket a CInt
     deriving (Eq, Show)
 
 -- | Typeclass used by all sockets, to extract their C type.
-class SocketType t where
+class SocketType a where
     -- | Returns the C enum value for each type. E.g. Pair => #const NN_PAIR
-    socketType :: t -> CInt
+    socketType :: a -> CInt
 
 instance SocketType Pair where
     socketType Pair = #const NN_PAIR
@@ -215,7 +215,7 @@ instance SocketType Bus where
 
 
 -- | Typeclass restricting which sockets can use the send function.
-class SendType t
+class SendType a
 instance SendType Pair
 instance SendType Req
 instance SendType Rep
@@ -226,7 +226,7 @@ instance SendType Push
 instance SendType Bus
 
 -- | Typeclass for sockets that implement recv
-class RecvType t
+class RecvType a
 instance RecvType Pair
 instance RecvType Req
 instance RecvType Rep
@@ -237,15 +237,15 @@ instance RecvType Pull
 instance RecvType Bus
 
 -- | Sub socket functionality
-class SubscriberType t
+class SubscriberType a
 instance SubscriberType Sub
 
 -- | Surveyor socket functionality
-class SurvType t
+class SurvType a
 instance SurvType Surveyor
 
 -- | Req socket functionality
-class ReqType t
+class ReqType a
 instance ReqType Req
 
 
@@ -407,7 +407,7 @@ NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -- | Creates a socket. Connections are formed using 'bind' or 'connect'.
 --
 -- See also: 'close'.
-socket :: (SocketType t) => t -> IO (Socket t)
+socket :: (SocketType a) => a -> IO (Socket a)
 socket t = do
     sid <- throwIfNegative "socket" $ c_nn_socket (#const AF_SP) (socketType t)
     return $ Socket t sid
@@ -422,7 +422,7 @@ socket t = do
 -- >     replicateM 10 (recv sub)
 --
 -- Ensures the socket is closed when your action is done.
-withSocket :: (SocketType t) => t -> (Socket t -> IO a) -> IO a
+withSocket :: (SocketType a) => a -> (Socket a -> IO b) -> IO b
 withSocket t = bracket (socket t) close
 
 -- | Binds the socket to a local interface.
@@ -440,7 +440,7 @@ withSocket t = bracket (socket t) close
 -- to 'shutdown' to remove a connection.
 --
 -- See also: 'connect', 'shutdown'.
-bind :: Socket t -> String -> IO Endpoint
+bind :: Socket a -> String -> IO Endpoint
 bind (Socket _ sid) addr =
     withCString addr $ \adr -> do
         epid <- throwIfNegative "bind" $ c_nn_bind sid adr
@@ -454,7 +454,7 @@ bind (Socket _ sid) addr =
 -- > connect sock "inproc://test"
 --
 -- See also: 'bind', 'shutdown'.
-connect :: Socket t -> String -> IO Endpoint
+connect :: Socket a -> String -> IO Endpoint
 connect (Socket _ sid) addr =
     withCString addr $ \adr -> do
         epid <- throwIfNegative "connect" $ c_nn_connect sid adr
@@ -463,14 +463,14 @@ connect (Socket _ sid) addr =
 -- | Removes an endpoint from a socket.
 --
 -- See also: 'bind', 'connect'.
-shutdown :: Socket t -> Endpoint -> IO ()
+shutdown :: Socket a -> Endpoint -> IO ()
 shutdown (Socket _ sid) (Endpoint eid) =
     throwIfNegative_ "shutdown" $ c_nn_shutdown sid eid
 
 -- | Blocking function for sending a message
 --
 -- See also: 'recv', 'recv''.
-send :: (SendType t, SocketType t) => Socket t -> ByteString -> IO ()
+send :: (SendType a, SocketType a) => Socket a -> ByteString -> IO ()
 send (Socket t sid) string =
     U.unsafeUseAsCStringLen string $ \(ptr, len) ->
         throwIfNegativeRetryMayBlock_
@@ -479,7 +479,7 @@ send (Socket t sid) string =
             (getOptionFd (Socket t sid) (#const NN_SNDFD) >>= threadWaitWrite)
 
 -- | Blocking receive.
-recv :: (RecvType t, SocketType t) => Socket t -> IO ByteString
+recv :: (RecvType a, SocketType a) => Socket a -> IO ByteString
 recv (Socket t sid) =
     alloca $ \ptr -> do
         len <- throwIfNegativeRetryMayBlock
@@ -492,7 +492,7 @@ recv (Socket t sid) =
         return str
 
 -- | Nonblocking receive function.
-recv' :: (RecvType t, SocketType t) => Socket t -> IO (Maybe ByteString)
+recv' :: (RecvType a, SocketType a) => Socket a -> IO (Maybe ByteString)
 recv' (Socket _ sid) =
     alloca $ \ptr -> do
         len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT)
@@ -509,12 +509,12 @@ recv' (Socket _ sid) =
                     else throwErrno "recv'"
 
 -- | Subscribe to a given subject string.
-subscribe :: (SubscriberType t, SocketType t) => Socket t -> ByteString -> IO ()
+subscribe :: (SubscriberType a, SocketType a) => Socket a -> ByteString -> IO ()
 subscribe (Socket t sid) string =
     setOption (Socket t sid) (socketType t) (#const NN_SUB_SUBSCRIBE) (StringOption string)
 
 -- | Unsubscribes from a subject.
-unsubscribe :: (SubscriberType t, SocketType t) => Socket t -> ByteString -> IO ()
+unsubscribe :: (SubscriberType a, SocketType a) => Socket a -> ByteString -> IO ()
 unsubscribe (Socket t sid) string =
     setOption (Socket t sid) (socketType t) (#const NN_SUB_UNSUBSCRIBE) (StringOption string)
 
@@ -522,7 +522,7 @@ unsubscribe (Socket t sid) string =
 -- received by the application will be discarded. The library will try to
 -- deliver any outstanding outbound messages for the time specified by
 -- NN_LINGER socket option. The call will block in the meantime.
-close :: Socket t -> IO ()
+close :: Socket a -> IO ()
 close (Socket _ sid) =
     throwIfNegativeRetry_ "close" $ c_nn_close sid
 
@@ -539,7 +539,7 @@ data SocketOption = IntOption Int | StringOption ByteString
     deriving (Show)
 
 -- Used for setting a socket option.
-setOption :: Socket t -> CInt -> CInt -> SocketOption -> IO ()
+setOption :: Socket a -> CInt -> CInt -> SocketOption -> IO ()
 
 setOption (Socket _ sid) level option (IntOption val) =
     alloca $ \ptr -> do
@@ -552,7 +552,7 @@ setOption (Socket _ sid) level option (StringOption str) =
         \(ptr, len) -> c_nn_setsockopt sid level option ptr (fromIntegral len)
 
 -- Reads a socket option.
-getOption :: Socket t -> CInt -> CInt -> IO CInt
+getOption :: Socket a -> CInt -> CInt -> IO CInt
 getOption (Socket _ sid) level option =
     alloca $ \ptr ->
         alloca $ \sizePtr -> do
@@ -565,7 +565,7 @@ getOption (Socket _ sid) level option =
             if cintSize /= size then throwErrno "getOption: output size not as expected" else return value
 
 -- Retrieves a nanomsg file descriptor for polling ready status.
-getOptionFd :: Socket t -> CInt -> IO Fd
+getOptionFd :: Socket a -> CInt -> IO Fd
 getOptionFd (Socket _ sid) option =
     alloca $ \ptr ->
         alloca $ \sizePtr -> do
@@ -581,7 +581,7 @@ getOptionFd (Socket _ sid) option =
 -- messages after close has been called, in milliseconds.
 --
 -- Negative value means infinite linger. Default value is 1000 (1 second).
-linger :: Socket t -> IO Int
+linger :: Socket a -> IO Int
 linger s =
     fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_LINGER)
 
@@ -589,7 +589,7 @@ linger s =
 -- messages after close has been called, in milliseconds.
 --
 -- Negative value means infinite linger. Default value is 1000 (1 second).
-setLinger :: Socket t -> Int -> IO ()
+setLinger :: Socket a -> Int -> IO ()
 setLinger s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_LINGER) (IntOption val)
 
@@ -598,7 +598,7 @@ setLinger s val =
 -- to the data in the send buffer.
 --
 -- Default value is 128kB.
-sndBuf :: Socket t -> IO Int
+sndBuf :: Socket a -> IO Int
 sndBuf s =
     fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_SNDBUF)
 
@@ -607,7 +607,7 @@ sndBuf s =
 -- to the data in the send buffer.
 --
 -- Default value is 128kB.
-setSndBuf :: Socket t -> Int -> IO ()
+setSndBuf :: Socket a -> Int -> IO ()
 setSndBuf s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_SNDBUF) (IntOption val)
 
@@ -616,7 +616,7 @@ setSndBuf s val =
 -- to the data in the receive buffer.
 --
 -- Default value is 128kB.
-rcvBuf :: Socket t -> IO Int
+rcvBuf :: Socket a -> IO Int
 rcvBuf s =
     fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_RCVBUF)
 
@@ -625,7 +625,7 @@ rcvBuf s =
 -- to the data in the receive buffer.
 --
 -- Default value is 128kB.
-setRcvBuf :: Socket t -> Int -> IO ()
+setRcvBuf :: Socket a -> Int -> IO ()
 setRcvBuf s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_RCVBUF) (IntOption val)
 
@@ -642,7 +642,7 @@ setRcvBuf s val =
 -- to prevent severe reconnection storms.
 --
 -- Default value is 100 (0.1 second).
-reconnectInterval :: Socket t -> IO Int
+reconnectInterval :: Socket a -> IO Int
 reconnectInterval s =
     fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_RECONNECT_IVL)
 
@@ -654,7 +654,7 @@ reconnectInterval s =
 -- to prevent severe reconnection storms.
 --
 -- Default value is 100 (0.1 second).
-setReconnectInterval :: Socket t -> Int -> IO ()
+setReconnectInterval :: Socket a -> Int -> IO ()
 setReconnectInterval s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_RECONNECT_IVL) (IntOption val)
 
@@ -667,7 +667,7 @@ setReconnectInterval s val =
 -- less than NN_RECONNECT_IVL, it is ignored.
 --
 -- Default value is 0.
-reconnectIntervalMax :: Socket t -> IO Int
+reconnectIntervalMax :: Socket a -> IO Int
 reconnectIntervalMax s =
     fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_RECONNECT_IVL_MAX)
 
@@ -680,7 +680,7 @@ reconnectIntervalMax s =
 -- less than NN_RECONNECT_IVL, it is ignored.
 --
 -- Default value is 0.
-setReconnectIntervalMax :: Socket t -> Int -> IO ()
+setReconnectIntervalMax :: Socket a -> Int -> IO ()
 setReconnectIntervalMax s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_RECONNECT_IVL_MAX) (IntOption val)
 
@@ -691,7 +691,7 @@ setReconnectIntervalMax s val =
 -- peers with low priority.
 --
 -- Highest priority is 1, lowest priority is 16. Default value is 8.
-sndPrio :: Socket t -> IO Int
+sndPrio :: Socket a -> IO Int
 sndPrio s =
     fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_SNDPRIO)
 
@@ -702,7 +702,7 @@ sndPrio s =
 -- peers with low priority.
 --
 -- Highest priority is 1, lowest priority is 16. Default value is 8.
-setSndPrio :: Socket t -> Int -> IO ()
+setSndPrio :: Socket a -> Int -> IO ()
 setSndPrio s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_SNDPRIO) (IntOption val)
 
@@ -710,7 +710,7 @@ setSndPrio s val =
 -- and IPv6 addresses are used.
 --
 -- Default value is 1.
-ipv4Only :: Socket t -> IO Int
+ipv4Only :: Socket a -> IO Int
 ipv4Only s =
     fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_IPV4ONLY)
 
@@ -718,7 +718,7 @@ ipv4Only s =
 -- and IPv6 addresses are used.
 --
 -- Default value is 1.
-setIpv4Only :: Socket t -> Int -> IO ()
+setIpv4Only :: Socket a -> Int -> IO ()
 setIpv4Only s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_IPV4ONLY) (IntOption val)
 
@@ -727,7 +727,7 @@ setIpv4Only s val =
 -- resent.
 --
 -- Default value is 60000 (1 minute).
-requestResendInterval :: (ReqType t) => Socket t -> IO Int
+requestResendInterval :: (ReqType a) => Socket a -> IO Int
 requestResendInterval s =
     fromIntegral <$> getOption s (#const NN_REQ) (#const NN_REQ_RESEND_IVL)
 
@@ -736,21 +736,21 @@ requestResendInterval s =
 -- resent.
 --
 -- Default value is 60000 (1 minute).
-setRequestResendInterval :: (ReqType t) => Socket t -> Int -> IO ()
+setRequestResendInterval :: (ReqType a) => Socket a -> Int -> IO ()
 setRequestResendInterval s val =
     setOption s (#const NN_REQ) (#const NN_REQ_RESEND_IVL) (IntOption val)
 
 -- | This option, when set to 1, disables Nagle's algorithm.
 --
 -- Default value is 0.
-tcpNoDelay :: Socket t -> IO Int
+tcpNoDelay :: Socket a -> IO Int
 tcpNoDelay s =
     fromIntegral <$> getOption s (#const NN_TCP) (#const NN_TCP_NODELAY)
 
 -- | This option, when set to 1, disables Nagle's algorithm.
 --
 -- Default value is 0.
-setTcpNoDelay :: Socket t -> Int -> IO ()
+setTcpNoDelay :: Socket a -> Int -> IO ()
 setTcpNoDelay s val =
     setOption s (#const NN_TCP) (#const NN_TCP_NODELAY) (IntOption val)
 
