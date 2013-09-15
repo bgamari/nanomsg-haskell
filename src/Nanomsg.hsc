@@ -280,9 +280,7 @@ throwIf p loc action = do
     if p res then throwErrno loc else return res
 
 throwIf_ :: (a -> Bool) -> String -> IO a -> IO ()
-throwIf_ p loc action = do
-    _ <- throwIf p loc action
-    return ()
+throwIf_ p loc action = void $ throwIf p loc action
 
 throwIfNegative :: (Ord a, Num a) => String -> IO a -> IO a
 throwIfNegative = throwIf (< 0)
@@ -318,7 +316,7 @@ throwIfRetryMayBlock p loc f on_block = do
             err <- c_nn_errno
             if err `elem` [ (#const EAGAIN), (#const EINTR), (#const EWOULDBLOCK) ]
                 then do
-                    _ <- on_block
+                    void on_block
                     throwIfRetryMayBlock p loc f on_block
                 else throwErrno loc
         else return res
