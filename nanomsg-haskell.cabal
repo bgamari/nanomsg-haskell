@@ -1,18 +1,16 @@
 name:                nanomsg-haskell
-version:             0.0.0.1
+version:             0.1.0
 synopsis:
   Bindings to the nanomsg library
 description:
-  This is a Haskell binding for the nanomsg messaging
-  library: <http://nanomsg.org/>.
+  This is a Haskell binding for the nanomsg library: <http://nanomsg.org/>.
 
   There's support for blocking send and recv, a non-blocking receive,
   and for all the socket types and the functions you need to wire
   them up and tear them down again.
 
   Most sockets options are available through accessor and mutator
-  functions. Sockets are typed, transports are not, as I'm not sure
-  if typed connection strings are really worth the hassle.
+  functions. Sockets are typed, transports are not.
 
 homepage:            https://github.com/ivarnymoen/nanomsg-haskell
 license:             MIT
@@ -33,7 +31,7 @@ library
   includes:            nanomsg/nn.h
   extra-libraries:     nanomsg
   build-depends:
-    base ==4.5.*,
+    base == 4.*,
     bytestring
 
 test-suite tests

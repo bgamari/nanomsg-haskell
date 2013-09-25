@@ -5,12 +5,14 @@
 -- License:         MIT
 -- Stability:       experimental
 --
--- This is a Haskell binding for the nanomsg messaging
--- library: <http://nanomsg.org/>.
+-- This is a Haskell binding for the nanomsg library: <http://nanomsg.org/>.
 --
--- The goal is to come up with a simple and robust interface. Low level
--- features like raw sockets and some non-essentials (e.g. devices)
--- will not be supported. Sockets are typed, transports are not.
+-- There's support for blocking send and recv, a non-blocking receive,
+-- and for all the socket types and the functions you need to wire
+-- them up and tear them down again.
+--
+-- Most socket options are available through accessor and mutator
+-- functions. Sockets are typed, transports are not.
 --
 -- Socket type documentation is adapted or quoted verbatim from the
 -- nanomsg manual. Please refer to nanomsg.org for information on
@@ -76,7 +78,7 @@ module Nanomsg
 #include "nanomsg/tcp.h"
 
 import Data.ByteString (ByteString)
---import qualified Data.ByteString.Lazy as L
+-- import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C
 import qualified Data.ByteString.Unsafe as U
 import Foreign (peek, poke, alloca)
