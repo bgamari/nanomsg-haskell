@@ -252,9 +252,7 @@ instance ReqType Req
 -- * Error handling
 --
 -- Reimplementing some of Foreign.C.Error here, to substitute nanomsg's errno
--- and strerror functions for the posix ones, and for the faint possiblity
--- of non -1 return values appearing in the future, as the docs read "negative
--- return value", not -1, on error.
+-- and strerror functions for the posix ones.
 
 -- | Pretty much any error condition throws this exception.
 data NNException = NNException String
@@ -274,42 +272,42 @@ throwErrno loc = do
     s <- mkErrorString loc
     throwIO $ NNException s
 
-throwIf :: (a -> Bool) -> String -> IO a -> IO a
-throwIf p loc action = do
+throwErrnoIf :: (a -> Bool) -> String -> IO a -> IO a
+throwErrnoIf p loc action = do
     res <- action
     if p res then throwErrno loc else return res
 
-throwIf_ :: (a -> Bool) -> String -> IO a -> IO ()
-throwIf_ p loc action = void $ throwIf p loc action
+throwErrnoIf_ :: (a -> Bool) -> String -> IO a -> IO ()
+throwErrnoIf_ p loc action = void $ throwErrnoIf p loc action
 
-throwIfNegative :: (Ord a, Num a) => String -> IO a -> IO a
-throwIfNegative = throwIf (< 0)
+throwErrnoIfMinus1 :: (Eq a, Num a) => String -> IO a -> IO a
+throwErrnoIfMinus1 = throwErrnoIf (== -1)
 
-throwIfNegative_ :: (Ord a, Num a) => String -> IO a -> IO ()
-throwIfNegative_ = throwIf_ (< 0)
+throwErrnoIfMinus1_ :: (Eq a, Num a) => String -> IO a -> IO ()
+throwErrnoIfMinus1_ = throwErrnoIf_ (== -1)
 
-throwIfRetry :: (Ord a, Num a) => (a -> Bool) -> String -> IO a -> IO a
-throwIfRetry p loc f = do
+throwErrnoIfRetry :: (a -> Bool) -> String -> IO a -> IO a
+throwErrnoIfRetry p loc f = do
     res <- f
     if p res
         then do
             err <- c_nn_errno
             if err == (#const EAGAIN) || err == (#const EINTR)
-                then throwIfRetry p loc f
+                then throwErrnoIfRetry p loc f
                 else throwErrno loc
         else return res
 
-throwIfRetry_ :: (Ord a, Num a) => (a -> Bool) -> String -> IO a -> IO ()
-throwIfRetry_ p loc f = void $ throwIfRetry p loc f
+throwErrnoIfRetry_ :: (a -> Bool) -> String -> IO a -> IO ()
+throwErrnoIfRetry_ p loc f = void $ throwErrnoIfRetry p loc f
 
-throwIfNegativeRetry :: (Ord a, Num a) => String -> IO a -> IO a
-throwIfNegativeRetry = throwIfRetry (< 0)
+throwErrnoIfMinus1Retry :: (Eq a, Num a) => String -> IO a -> IO a
+throwErrnoIfMinus1Retry = throwErrnoIfRetry (== -1)
 
-throwIfNegativeRetry_ :: (Ord a, Num a) => String -> IO a -> IO ()
-throwIfNegativeRetry_ = throwIfRetry_ (< 0)
+throwErrnoIfMinus1Retry_ :: (Eq a, Num a) => String -> IO a -> IO ()
+throwErrnoIfMinus1Retry_ = throwErrnoIfRetry_ (== -1)
 
-throwIfRetryMayBlock :: (Ord a, Num a) => (a -> Bool) -> String -> IO a -> IO b -> IO a
-throwIfRetryMayBlock p loc f on_block = do
+throwErrnoIfRetryMayBlock :: (a -> Bool) -> String -> IO a -> IO b -> IO a
+throwErrnoIfRetryMayBlock p loc f on_block = do
     res <- f
     if p res
         then do
@@ -317,18 +315,18 @@ throwIfRetryMayBlock p loc f on_block = do
             if err `elem` [ (#const EAGAIN), (#const EINTR), (#const EWOULDBLOCK) ]
                 then do
                     void on_block
-                    throwIfRetryMayBlock p loc f on_block
+                    throwErrnoIfRetryMayBlock p loc f on_block
                 else throwErrno loc
         else return res
 
-throwIfRetryMayBlock_ :: (Ord a, Num a) => (a -> Bool) -> String -> IO a -> IO b -> IO ()
-throwIfRetryMayBlock_ p loc f on_block = void $ throwIfRetryMayBlock p loc f on_block
+throwErrnoIfRetryMayBlock_ :: (a -> Bool) -> String -> IO a -> IO b -> IO ()
+throwErrnoIfRetryMayBlock_ p loc f on_block = void $ throwErrnoIfRetryMayBlock p loc f on_block
 
-throwIfNegativeRetryMayBlock :: (Ord a, Num a) => String -> IO a -> IO b -> IO a
-throwIfNegativeRetryMayBlock = throwIfRetryMayBlock (< 0)
+throwErrnoIfMinus1RetryMayBlock :: (Eq a, Num a) => String -> IO a -> IO b -> IO a
+throwErrnoIfMinus1RetryMayBlock = throwErrnoIfRetryMayBlock (== -1)
 
-throwIfNegativeRetryMayBlock_ :: (Ord a, Num a) => String -> IO a -> IO b -> IO ()
-throwIfNegativeRetryMayBlock_ = throwIfRetryMayBlock_ (< 0)
+throwErrnoIfMinus1RetryMayBlock_ :: (Eq a, Num a) => String -> IO a -> IO b -> IO ()
+throwErrnoIfMinus1RetryMayBlock_ = throwErrnoIfRetryMayBlock_ (== -1)
 
 
 -- * FFI functions
@@ -407,7 +405,7 @@ NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -- See also: 'close'.
 socket :: (SocketType a) => a -> IO (Socket a)
 socket t = do
-    sid <- throwIfNegative "socket" $ c_nn_socket (#const AF_SP) (socketType t)
+    sid <- throwErrnoIfMinus1 "socket" $ c_nn_socket (#const AF_SP) (socketType t)
     return $ Socket t sid
 
 -- | Creates a socket and runs your action with it.
@@ -441,7 +439,7 @@ withSocket t = bracket (socket t) close
 bind :: Socket a -> String -> IO Endpoint
 bind (Socket _ sid) addr =
     withCString addr $ \adr -> do
-        epid <- throwIfNegative "bind" $ c_nn_bind sid adr
+        epid <- throwErrnoIfMinus1 "bind" $ c_nn_bind sid adr
         return $ Endpoint epid
 
 -- | Connects the socket to an endpoint.
@@ -455,7 +453,7 @@ bind (Socket _ sid) addr =
 connect :: Socket a -> String -> IO Endpoint
 connect (Socket _ sid) addr =
     withCString addr $ \adr -> do
-        epid <- throwIfNegative "connect" $ c_nn_connect sid adr
+        epid <- throwErrnoIfMinus1 "connect" $ c_nn_connect sid adr
         return $ Endpoint epid
 
 -- | Removes an endpoint from a socket.
@@ -463,7 +461,7 @@ connect (Socket _ sid) addr =
 -- See also: 'bind', 'connect'.
 shutdown :: Socket a -> Endpoint -> IO ()
 shutdown (Socket _ sid) (Endpoint eid) =
-    throwIfNegative_ "shutdown" $ c_nn_shutdown sid eid
+    throwErrnoIfMinus1_ "shutdown" $ c_nn_shutdown sid eid
 
 -- | Blocking function for sending a message
 --
@@ -471,7 +469,7 @@ shutdown (Socket _ sid) (Endpoint eid) =
 send :: (SendType a, SocketType a) => Socket a -> ByteString -> IO ()
 send (Socket t sid) string =
     U.unsafeUseAsCStringLen string $ \(ptr, len) ->
-        throwIfNegativeRetryMayBlock_
+        throwErrnoIfMinus1RetryMayBlock_
             "send"
             (c_nn_send sid ptr (fromIntegral len) (#const NN_DONTWAIT))
             (getOptionFd (Socket t sid) (#const NN_SNDFD) >>= threadWaitWrite)
@@ -480,13 +478,13 @@ send (Socket t sid) string =
 recv :: (RecvType a, SocketType a) => Socket a -> IO ByteString
 recv (Socket t sid) =
     alloca $ \ptr -> do
-        len <- throwIfNegativeRetryMayBlock
+        len <- throwErrnoIfMinus1RetryMayBlock
                 "recv"
                 (c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT))
                 (getOptionFd (Socket t sid) (#const NN_RCVFD) >>= threadWaitRead)
         buf <- peek ptr
         str <- C.packCStringLen (buf, fromIntegral len)
-        throwIfNegative_ "recv freeing message buffer" $ c_nn_freemsg buf
+        throwErrnoIfMinus1_ "recv freeing message buffer" $ c_nn_freemsg buf
         return str
 
 -- | Nonblocking receive function.
@@ -498,7 +496,7 @@ recv' (Socket _ sid) =
             then do
                 buf <- peek ptr
                 str <- C.packCStringLen (buf, fromIntegral len)
-                throwIfNegative_ "recv' freeing message buffer" $ c_nn_freemsg buf
+                throwErrnoIfMinus1_ "recv' freeing message buffer" $ c_nn_freemsg buf
                 return $ Just str
             else do
                 errno <- c_nn_errno
@@ -522,7 +520,7 @@ unsubscribe (Socket t sid) string =
 -- NN_LINGER socket option. The call will block in the meantime.
 close :: Socket a -> IO ()
 close (Socket _ sid) =
-    throwIfNegativeRetry_ "close" $ c_nn_close sid
+    throwErrnoIfMinus1Retry_ "close" $ c_nn_close sid
 
 -- | Switches nanomsg into shutdown modus and interrupts any waiting
 -- function calls.
@@ -543,10 +541,10 @@ setOption (Socket _ sid) level option (IntOption val) =
     alloca $ \ptr -> do
         poke ptr (fromIntegral val :: CInt)
         let cintSize = fromIntegral $ sizeOf (fromIntegral val :: CInt) :: CInt
-        throwIfNegative_ "setOption (int)" $ c_nn_setsockopt sid level option ptr cintSize
+        throwErrnoIfMinus1_ "setOption (int)" $ c_nn_setsockopt sid level option ptr cintSize
 
 setOption (Socket _ sid) level option (StringOption str) =
-    throwIfNegative_ "setOption (string)" <$> U.unsafeUseAsCStringLen str $
+    throwErrnoIfMinus1_ "setOption (string)" <$> U.unsafeUseAsCStringLen str $
         \(ptr, len) -> c_nn_setsockopt sid level option ptr (fromIntegral len)
 
 -- Reads a socket option.
@@ -557,7 +555,7 @@ getOption (Socket _ sid) level option =
             let a = 1 :: CInt
             let cintSize = fromIntegral $ sizeOf a
             poke sizePtr cintSize
-            throwIfNegative_ "getOption" $ c_nn_getsockopt sid level option (ptr :: Ptr CInt) sizePtr
+            throwErrnoIfMinus1_ "getOption" $ c_nn_getsockopt sid level option (ptr :: Ptr CInt) sizePtr
             value <- peek ptr
             size <- peek sizePtr
             if cintSize /= size then throwErrno "getOption: output size not as expected" else return value
@@ -570,7 +568,7 @@ getOptionFd (Socket _ sid) option =
             let a = 1 :: Fd
             let fdSize = fromIntegral $ sizeOf a
             poke sizePtr fdSize
-            throwIfNegative_ "getFd" $ c_nn_getsockopt sid (#const NN_SOL_SOCKET) option (ptr :: Ptr Fd) sizePtr
+            throwErrnoIfMinus1_ "getOptionFd" $ c_nn_getsockopt sid (#const NN_SOL_SOCKET) option (ptr :: Ptr Fd) sizePtr
             value <- peek ptr
             size <- peek sizePtr
             if fdSize /= size then throwErrno "getOptionFd: output size not as expected" else return value
