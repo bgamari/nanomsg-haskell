@@ -19,7 +19,7 @@ pair size count = do
 
 main :: IO ()
 main = defaultMain
-    [ bench "20 bytes x 100k messages" $ nfIO $ pair    20 100000
-    , bench "20k bytes x 100 messages" $ nfIO $ pair 20000    100
+    [ bench "40 bytes x 10k messages" $ nfIO $ pair    40 10000
+    , bench "20k bytes x 20 messages" $ nfIO $ pair 20000    20
     ]
 
