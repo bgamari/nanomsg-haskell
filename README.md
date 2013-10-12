@@ -49,7 +49,7 @@ Client:
     main = do
         withSocket Sub $ \s -> do
             _ <- connect s "tcp://localhost:5560"
-            _ <- subscribe s $ C.pack ""
+            subscribe s $ C.pack ""
             forever $ do
                 msg <- recv s
                 C.putStrLn msg
@@ -67,7 +67,7 @@ Nonblocking client:
     main =
         withSocket Sub $ \s -> do
             _ <- connect s "tcp://localhost:5560"
-            _ <- subscribe s $ C.pack ""
+            subscribe s $ C.pack ""
             forever $ do
                 threadDelay 700           -- let's conserve some cycles
                 msg <- recv' s
