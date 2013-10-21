@@ -183,37 +183,37 @@ data Socket a = Socket a CInt
 -- | Typeclass used by all sockets, to extract their C type.
 class Protocol a where
     -- | Returns the C enum value for each type. E.g. Pair => #const NN_PAIR
-    socketType :: a -> CInt
+    protocolId :: a -> CInt
 
 instance Protocol Pair where
-    socketType Pair = #const NN_PAIR
+    protocolId Pair = #const NN_PAIR
 
 instance Protocol Req where
-    socketType Req = #const NN_REQ
+    protocolId Req = #const NN_REQ
 
 instance Protocol Rep where
-    socketType Rep = #const NN_REP
+    protocolId Rep = #const NN_REP
 
 instance Protocol Pub where
-    socketType Pub = #const NN_PUB
+    protocolId Pub = #const NN_PUB
 
 instance Protocol Sub where
-    socketType Sub = #const NN_SUB
+    protocolId Sub = #const NN_SUB
 
 instance Protocol Surveyor where
-    socketType Surveyor = #const NN_SURVEYOR
+    protocolId Surveyor = #const NN_SURVEYOR
 
 instance Protocol Respondent where
-    socketType Respondent = #const NN_RESPONDENT
+    protocolId Respondent = #const NN_RESPONDENT
 
 instance Protocol Push where
-    socketType Push = #const NN_PUSH
+    protocolId Push = #const NN_PUSH
 
 instance Protocol Pull where
-    socketType Pull = #const NN_PULL
+    protocolId Pull = #const NN_PULL
 
 instance Protocol Bus where
-    socketType Bus = #const NN_BUS
+    protocolId Bus = #const NN_BUS
 
 
 -- | Typeclass restricting which sockets can use the send function.
@@ -407,7 +407,7 @@ NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -- See also: 'close'.
 socket :: (Protocol a) => a -> IO (Socket a)
 socket t = do
-    sid <- throwErrnoIfMinus1 "socket" $ c_nn_socket (#const AF_SP) (socketType t)
+    sid <- throwErrnoIfMinus1 "socket" $ c_nn_socket (#const AF_SP) (protocolId t)
     return $ Socket t sid
 
 -- | Creates a socket and runs your action with it.
@@ -509,12 +509,12 @@ recv' (Socket _ sid) =
 -- | Subscribe to a given subject string.
 subscribe :: (SubscriberType a, Protocol a) => Socket a -> ByteString -> IO ()
 subscribe (Socket t sid) string =
-    setOption (Socket t sid) (socketType t) (#const NN_SUB_SUBSCRIBE) (StringOption string)
+    setOption (Socket t sid) (protocolId t) (#const NN_SUB_SUBSCRIBE) (StringOption string)
 
 -- | Unsubscribes from a subject.
 unsubscribe :: (SubscriberType a, Protocol a) => Socket a -> ByteString -> IO ()
 unsubscribe (Socket t sid) string =
-    setOption (Socket t sid) (socketType t) (#const NN_SUB_UNSUBSCRIBE) (StringOption string)
+    setOption (Socket t sid) (protocolId t) (#const NN_SUB_UNSUBSCRIBE) (StringOption string)
 
 -- | Closes the socket. Any buffered inbound messages that were not yet
 -- received by the application will be discarded. The library will try to
