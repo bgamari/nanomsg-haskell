@@ -416,7 +416,7 @@ socket t = do
 --
 -- > withSocket Sub $ \sub -> do
 -- >     _ <- connect sub "tcp://localhost:5560"
--- >     _ <- subscribe sub (C.pack "")
+-- >     subscribe sub (C.pack "")
 -- >     replicateM 10 (recv sub)
 --
 -- Ensures the socket is closed when your action is done.
