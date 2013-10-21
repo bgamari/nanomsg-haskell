@@ -1,4 +1,4 @@
-# Overview
+# nanomsg-haskell v0.1.0
 
 This is a Haskell binding for the nanomsg library: <http://nanomsg.org/>.
 
@@ -9,7 +9,27 @@ tear them down again.
 Most socket options are available through accessor and mutator
 functions. Sockets are typed, transports are not.
 
-# Usage
+## Building
+
+The library should wind up on hackage in time, but for now build it
+following these steps:
+
+  1. Install and build nanomsg (and zmq3, if you are building benchmarks)
+  1. git clone https://github.com/ivarnymoen/nanomsg-haskell
+  1. cd nanomsg-haskell && cabal sandbox init
+  1. cabal install --dependencies-only --enable-tests --enable-benchmarks
+  1. cabal configure --enable-tests --enable-benchmarks
+  1. cabal build
+  1. cabal test
+
+## Contributing
+
+Just submit a pull request for small stuff, but please get in touch
+beforehand before sinking a lot of effort into major/API changes.
+
+Remember adding your name to the AUTHORS file.
+
+## Usage
 
 Simple Pub/sub example:
 
