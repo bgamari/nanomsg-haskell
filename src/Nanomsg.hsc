@@ -181,38 +181,38 @@ data Socket a = Socket a CInt
     deriving (Eq, Show)
 
 -- | Typeclass used by all sockets, to extract their C type.
-class SocketType a where
+class Protocol a where
     -- | Returns the C enum value for each type. E.g. Pair => #const NN_PAIR
     socketType :: a -> CInt
 
-instance SocketType Pair where
+instance Protocol Pair where
     socketType Pair = #const NN_PAIR
 
-instance SocketType Req where
+instance Protocol Req where
     socketType Req = #const NN_REQ
 
-instance SocketType Rep where
+instance Protocol Rep where
     socketType Rep = #const NN_REP
 
-instance SocketType Pub where
+instance Protocol Pub where
     socketType Pub = #const NN_PUB
 
-instance SocketType Sub where
+instance Protocol Sub where
     socketType Sub = #const NN_SUB
 
-instance SocketType Surveyor where
+instance Protocol Surveyor where
     socketType Surveyor = #const NN_SURVEYOR
 
-instance SocketType Respondent where
+instance Protocol Respondent where
     socketType Respondent = #const NN_RESPONDENT
 
-instance SocketType Push where
+instance Protocol Push where
     socketType Push = #const NN_PUSH
 
-instance SocketType Pull where
+instance Protocol Pull where
     socketType Pull = #const NN_PULL
 
-instance SocketType Bus where
+instance Protocol Bus where
     socketType Bus = #const NN_BUS
 
 
@@ -405,7 +405,7 @@ NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -- | Creates a socket. Connections are formed using 'bind' or 'connect'.
 --
 -- See also: 'close'.
-socket :: (SocketType a) => a -> IO (Socket a)
+socket :: (Protocol a) => a -> IO (Socket a)
 socket t = do
     sid <- throwErrnoIfMinus1 "socket" $ c_nn_socket (#const AF_SP) (socketType t)
     return $ Socket t sid
@@ -420,7 +420,7 @@ socket t = do
 -- >     replicateM 10 (recv sub)
 --
 -- Ensures the socket is closed when your action is done.
-withSocket :: (SocketType a) => a -> (Socket a -> IO b) -> IO b
+withSocket :: (Protocol a) => a -> (Socket a -> IO b) -> IO b
 withSocket t = bracket (socket t) close
 
 -- | Binds the socket to a local interface.
@@ -468,7 +468,7 @@ shutdown (Socket _ sid) (Endpoint eid) =
 -- | Blocking function for sending a message
 --
 -- See also: 'recv', 'recv''.
-send :: (SendType a, SocketType a) => Socket a -> ByteString -> IO ()
+send :: (SendType a, Protocol a) => Socket a -> ByteString -> IO ()
 send (Socket t sid) string =
     U.unsafeUseAsCStringLen string $ \(ptr, len) ->
         throwErrnoIfMinus1RetryMayBlock_
@@ -477,7 +477,7 @@ send (Socket t sid) string =
             (getOptionFd (Socket t sid) (#const NN_SNDFD) >>= threadWaitWrite)
 
 -- | Blocking receive.
-recv :: (RecvType a, SocketType a) => Socket a -> IO ByteString
+recv :: (RecvType a, Protocol a) => Socket a -> IO ByteString
 recv (Socket t sid) =
     alloca $ \ptr -> do
         len <- throwErrnoIfMinus1RetryMayBlock
@@ -490,7 +490,7 @@ recv (Socket t sid) =
         return str
 
 -- | Nonblocking receive function.
-recv' :: (RecvType a, SocketType a) => Socket a -> IO (Maybe ByteString)
+recv' :: (RecvType a, Protocol a) => Socket a -> IO (Maybe ByteString)
 recv' (Socket _ sid) =
     alloca $ \ptr -> do
         len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT)
@@ -507,12 +507,12 @@ recv' (Socket _ sid) =
                     else throwErrno "recv'"
 
 -- | Subscribe to a given subject string.
-subscribe :: (SubscriberType a, SocketType a) => Socket a -> ByteString -> IO ()
+subscribe :: (SubscriberType a, Protocol a) => Socket a -> ByteString -> IO ()
 subscribe (Socket t sid) string =
     setOption (Socket t sid) (socketType t) (#const NN_SUB_SUBSCRIBE) (StringOption string)
 
 -- | Unsubscribes from a subject.
-unsubscribe :: (SubscriberType a, SocketType a) => Socket a -> ByteString -> IO ()
+unsubscribe :: (SubscriberType a, Protocol a) => Socket a -> ByteString -> IO ()
 unsubscribe (Socket t sid) string =
     setOption (Socket t sid) (socketType t) (#const NN_SUB_UNSUBSCRIBE) (StringOption string)
 
