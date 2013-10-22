@@ -17,64 +17,60 @@ license:             MIT
 license-file:        LICENSE
 author:              See AUTHORS file
 maintainer:          <ivar.nymoen@gmail.com>
-copyright:           Copyright (c) 2013 Ivar Nymoen
+copyright:           Copyright (c) 2013 the nanomsg-haskell authors
 category:            Network
 build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  hs-source-dirs:      src
-  ghc-options:         -O2 -Wall
-  exposed-modules:     Nanomsg
-  --other-modules:       Nanomsg.Internal
-  extensions:          ForeignFunctionInterface, DeriveDataTypeable
-  includes:            nanomsg/nn.h
-  extra-libraries:     nanomsg
+  hs-source-dirs:    src
+  ghc-options:       -O2 -Wall
+  exposed-modules:   Nanomsg
+  extensions:        ForeignFunctionInterface, DeriveDataTypeable
+  includes:          nanomsg/nn.h
+  extra-libraries:   nanomsg
   build-depends:
     base == 4.*,
-    bytestring
+    bytestring >= 0.9.0 && < 0.11
 
 test-suite tests
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     tests
-  main-is:            Properties.hs
-  ghc-options:        -O2 -Wall -threaded
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    tests
+  main-is:           Properties.hs
+  ghc-options:       -O2 -Wall -threaded
   build-depends:
-    base,
+    base == 4.*,
+    bytestring >= 0.9.0 && < 0.11,
     nanomsg-haskell,
-    bytestring,
     QuickCheck,
     test-framework,
     test-framework-quickcheck2,
-    test-framework-th,
-    transformers
+    test-framework-th
 
 source-repository head
-  type:               git
-  location:           https://github.com/ivarnymoen/nanomsg-haskell
+  type:              git
+  location:          https://github.com/ivarnymoen/nanomsg-haskell
 
 benchmark send-messages
-  type:           exitcode-stdio-1.0
-  main-is:        SendMessages.hs
-  ghc-options:    -O2 -Wall -threaded
-  hs-source-dirs: benchmarks
+  type:              exitcode-stdio-1.0
+  main-is:           SendMessages.hs
+  ghc-options:       -O2 -Wall -threaded
+  hs-source-dirs:    benchmarks
   build-depends:
-    base,
+    base == 4.*,
+    bytestring >= 0.9.0 && < 0.11,
     nanomsg-haskell,
-    criterion,
-    bytestring,
-    transformers
+    criterion
 
 benchmark vs-zeromq-bindings
-  type:           exitcode-stdio-1.0
-  main-is:        Zmq.hs
-  ghc-options:    -O2 -Wall -threaded
-  hs-source-dirs: benchmarks
+  type:              exitcode-stdio-1.0
+  main-is:           Zmq.hs
+  ghc-options:       -O2 -Wall -threaded
+  hs-source-dirs:    benchmarks
   build-depends:
-    base,
+    base == 4.*,
+    bytestring >= 0.9.0 && < 0.11,
     nanomsg-haskell,
     zeromq3-haskell,
-    criterion,
-    bytestring,
-    transformers
+    criterion
 
