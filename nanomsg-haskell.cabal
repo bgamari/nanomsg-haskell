@@ -21,6 +21,7 @@ copyright:           Copyright (c) 2013 the nanomsg-haskell authors
 category:            Network
 build-type:          Simple
 cabal-version:       >=1.8
+extra-source-files:  AUTHORS, README.md
 
 library
   hs-source-dirs:    src
