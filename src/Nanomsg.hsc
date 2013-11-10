@@ -10,7 +10,6 @@
 -- There's support for blocking send and recv, a non-blocking receive,
 -- and for all the socket types and the functions you need to wire
 -- them up and tear them down again.
---
 -- Most socket options are available through accessor and mutator
 -- functions. Sockets are typed, transports are not.
 --
@@ -34,7 +33,7 @@ module Nanomsg
         , Socket
         , Endpoint
         , NNException
-        -- * Functions
+        -- * API
         , socket
         , withSocket
         , bind
@@ -100,8 +99,8 @@ import System.Posix.Types (Fd(..))
 
 -- | Socket for communication with exactly one peer. Each
 -- party can send messages at any time. If the peer is not
--- available or send buffer is full, subsequent calls to
--- 'send' will block until it’s possible to send the message.
+-- available or the send buffer is full, subsequent calls
+-- will block until it’s possible to send the message.
 data Pair = Pair
 
 -- | Used to implement a client application that sends requests
@@ -117,15 +116,11 @@ data Req = Req
 data Rep = Rep
 
 -- | This socket is used to distribute messages to multiple destinations.
--- Can not receive.
 data Pub = Pub
 
 -- | Receives messages from the publisher. Only messages that the socket is
 -- subscribed to are received. When the socket is created there are no
 -- subscriptions and thus no messages will be received.
---
--- Send is not defined on this socket. The socket can be connected
--- to at most one peer.
 --
 -- See also 'subscribe' and 'unsubscribe'.
 data Sub = Sub
@@ -142,8 +137,8 @@ data Sub = Sub
 -- See also 'setSurveyorDeadline'
 data Surveyor = Surveyor
 
--- | Used to respond to a survey. Survey is received using receive function,
--- response is sent using send function. This socket can be connected to
+-- | Used to respond to a survey. Survey is received using receive,
+-- response is sent using send. This socket can be connected to
 -- at most one peer.
 data Respondent = Respondent
 
@@ -151,21 +146,13 @@ data Respondent = Respondent
 -- balancing them among instances of the next processing step.
 --
 -- This socket is used to send messages to a cluster of load-balanced nodes.
---
--- Receive operation is not implemented on this socket type.
 data Push = Push
 
 -- | This socket is used to receive a message from a cluster of nodes.
---
--- Send operation is not implemented on this socket type.
 data Pull = Pull
 
 -- | Broadcasts messages from any node to all other nodes in the topology.
 -- The socket should never receives messages that it sent itself.
---
--- This pattern scales only to local level (within a single machine or
--- within a single LAN). Trying to scale it further can result in overloading
--- individual nodes with messages.
 data Bus = Bus
 
 -- | Endpoint identifier. Created by 'connect' or 'bind'.
@@ -400,7 +387,7 @@ NN_EXPORT int nn_recvmsg (int s, struct nn_msghdr *msghdr, int flags);
 NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -}
 
--- * General functions
+-- * API
 
 -- | Creates a socket. Connections are formed using 'bind' or 'connect'.
 --
