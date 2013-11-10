@@ -18,7 +18,8 @@
 -- how to use the library.
 module Nanomsg
         (
-        -- * Socket types
+        -- * Types
+        -- ** Socket types
           Pair(..)
         , Req(..)
         , Rep(..)
@@ -29,11 +30,12 @@ module Nanomsg
         , Push(..)
         , Pull(..)
         , Bus(..)
-        -- * Other types
+        -- ** Other
         , Socket
         , Endpoint
         , NNException
         -- * API
+        -- ** Operations
         , socket
         , withSocket
         , bind
@@ -46,7 +48,7 @@ module Nanomsg
         , shutdown
         , close
         , term
-        -- ** Socket option accessors and mutators
+        -- ** Socket option settings
         , linger
         , setLinger
         , sndBuf
