@@ -1,5 +1,5 @@
 name:                nanomsg-haskell
-version:             0.1.0
+version:             0.1.1
 synopsis:
   Bindings to the nanomsg library
 description:
@@ -20,18 +20,19 @@ maintainer:          <ivar.nymoen@gmail.com>
 copyright:           Copyright (c) 2013 the nanomsg-haskell authors
 category:            Network
 build-type:          Simple
-cabal-version:       >=1.8
+cabal-version:       >=1.10
 extra-source-files:  AUTHORS, README.md
 
 library
   hs-source-dirs:    src
   ghc-options:       -O2 -Wall
+  default-language:  Haskell2010
   exposed-modules:   Nanomsg
-  extensions:        ForeignFunctionInterface, DeriveDataTypeable
+  default-extensions:  ForeignFunctionInterface, DeriveDataTypeable
   includes:          nanomsg/nn.h
   extra-libraries:   nanomsg
   build-depends:
-    base == 4.*,
+    base >= 4.5 && < 4.7,
     bytestring >= 0.9.0 && < 0.11
 
 test-suite tests
@@ -39,8 +40,9 @@ test-suite tests
   hs-source-dirs:    tests
   main-is:           Properties.hs
   ghc-options:       -O2 -Wall -threaded
+  default-language:  Haskell2010
   build-depends:
-    base == 4.*,
+    base >= 4.5 && < 4.7,
     bytestring >= 0.9.0 && < 0.11,
     nanomsg-haskell,
     QuickCheck,
@@ -56,9 +58,10 @@ benchmark send-messages
   type:              exitcode-stdio-1.0
   main-is:           SendMessages.hs
   ghc-options:       -O2 -Wall -threaded
+  default-language:  Haskell2010
   hs-source-dirs:    benchmarks
   build-depends:
-    base == 4.*,
+    base >= 4.5 && < 4.7,
     bytestring >= 0.9.0 && < 0.11,
     nanomsg-haskell,
     criterion
@@ -67,9 +70,10 @@ benchmark vs-zeromq-bindings
   type:              exitcode-stdio-1.0
   main-is:           Zmq.hs
   ghc-options:       -O2 -Wall -threaded
+  default-language:  Haskell2010
   hs-source-dirs:    benchmarks
   build-depends:
-    base == 4.*,
+    base >= 4.5 && < 4.7,
     bytestring >= 0.9.0 && < 0.11,
     nanomsg-haskell,
     zeromq3-haskell,
