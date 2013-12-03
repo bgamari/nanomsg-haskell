@@ -331,7 +331,7 @@ foreign import ccall unsafe "nn.h nn_send"
 
 -- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
 foreign import ccall unsafe "nn.h nn_recv"
-    c_nn_recv_foreignbuf :: CInt -> Ptr CString -> CInt -> CInt -> IO CInt
+    c_nn_recv :: CInt -> Ptr CString -> CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_freemsg (void *msg);
 foreign import ccall unsafe "nn.h nn_freemsg"
@@ -458,7 +458,7 @@ recv (Socket t sid) =
     alloca $ \ptr -> do
         len <- throwErrnoIfMinus1RetryMayBlock
                 "recv"
-                (c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT))
+                (c_nn_recv sid ptr (#const NN_MSG) (#const NN_DONTWAIT))
                 (getOptionFd (Socket t sid) (#const NN_RCVFD) >>= threadWaitRead)
         buf <- peek ptr
         str <- C.packCStringLen (buf, fromIntegral len)
@@ -469,7 +469,7 @@ recv (Socket t sid) =
 recv' :: Receiver a => Socket a -> IO (Maybe ByteString)
 recv' (Socket _ sid) =
     alloca $ \ptr -> do
-        len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT)
+        len <- c_nn_recv sid ptr (#const NN_MSG) (#const NN_DONTWAIT)
         if len >= 0
             then do
                 buf <- peek ptr
