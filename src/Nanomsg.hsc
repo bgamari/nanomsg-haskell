@@ -69,6 +69,8 @@ module Nanomsg
         , setIpv4Only
         , requestResendInterval
         , setRequestResendInterval
+        , surveyorDeadline
+        , setSurveyorDeadline
         , tcpNoDelay
         , setTcpNoDelay
     ) where
@@ -138,7 +140,7 @@ data Sub = Sub
 -- the connected respondents. Once the query is sent, the socket can be used
 -- to receive the responses.
 --
--- When the survey deadline expires, receive will return ETIMEDOUT error.
+-- When the survey deadline expires, receive will throw an NNException.
 --
 -- See also 'setSurveyorDeadline'
 data Surveyor = Surveyor
@@ -719,6 +721,16 @@ requestResendInterval s =
 setRequestResendInterval :: Socket Req -> Int -> IO ()
 setRequestResendInterval s val =
     setOption s (#const NN_REQ) (#const NN_REQ_RESEND_IVL) (IntOption val)
+
+-- | Get timeout for Surveyor sockets
+surveyorDeadline :: Socket Surveyor -> IO Int
+surveyorDeadline s =
+    fromIntegral <$> getOption s (#const NN_SURVEYOR) (#const NN_SURVEYOR_DEADLINE)
+
+-- | Set timeout for Surveyor sockets
+setSurveyorDeadline :: Socket Surveyor -> Int -> IO ()
+setSurveyorDeadline s val =
+    setOption s (#const NN_SURVEYOR) (#const NN_SURVEYOR_DEADLINE) (IntOption val)
 
 -- | This option, when set to 1, disables Nagle's algorithm.
 --
