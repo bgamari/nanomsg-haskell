@@ -10,6 +10,7 @@
 -- There's support for blocking send and recv, a non-blocking receive,
 -- and for all the socket types and the functions you need to wire
 -- them up and tear them down again.
+--
 -- Most socket options are available through accessor and mutator
 -- functions. Sockets are typed, transports are not.
 --
@@ -34,8 +35,8 @@ module Nanomsg
         , Socket
         , Endpoint
         , NNException
-        -- * API
-        -- ** Operations
+        -- * Operations
+        -- ** General operations
         , socket
         , withSocket
         , bind
@@ -278,8 +279,10 @@ throwErrnoIfRetry p loc f = do
 throwErrnoIfRetry_ :: (a -> Bool) -> String -> IO a -> IO ()
 throwErrnoIfRetry_ p loc f = void $ throwErrnoIfRetry p loc f
 
+{-
 throwErrnoIfMinus1Retry :: (Eq a, Num a) => String -> IO a -> IO a
 throwErrnoIfMinus1Retry = throwErrnoIfRetry (== -1)
+-}
 
 throwErrnoIfMinus1Retry_ :: (Eq a, Num a) => String -> IO a -> IO ()
 throwErrnoIfMinus1Retry_ = throwErrnoIfRetry_ (== -1)
@@ -376,7 +379,7 @@ NN_EXPORT int nn_recvmsg (int s, struct nn_msghdr *msghdr, int flags);
 NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -}
 
--- * API
+-- * Operations
 
 -- | Creates a socket. Connections are formed using 'bind' or 'connect'.
 --
@@ -551,7 +554,7 @@ getOptionFd (Socket _ sid) option =
             size <- peek sizePtr
             if fdSize /= size then throwErrno "getOptionFd: output size not as expected" else return value
 
--- | Specifies how long should the socket try to send pending outbound
+-- | Specifies how long the socket should try to send pending outbound
 -- messages after close has been called, in milliseconds.
 --
 -- Negative value means infinite linger. Default value is 1000 (1 second).

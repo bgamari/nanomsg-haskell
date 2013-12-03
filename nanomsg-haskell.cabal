@@ -1,5 +1,5 @@
 name:                nanomsg-haskell
-version:             0.1.2
+version:             0.2.0
 synopsis:
   Bindings to the nanomsg library
 description:
@@ -15,13 +15,16 @@ description:
 homepage:            https://github.com/ivarnymoen/nanomsg-haskell
 license:             MIT
 license-file:        LICENSE
-author:              See AUTHORS file
+author:              Ivar Nymoen
 maintainer:          <ivar.nymoen@gmail.com>
-copyright:           Copyright (c) 2013 the nanomsg-haskell authors
+copyright:           Copyright (c) 2013 Ivar Nymoen
 category:            Network
 build-type:          Simple
 cabal-version:       >=1.10
-extra-source-files:  AUTHORS, README.md
+extra-source-files:
+    README.md
+    , tests/*.hs
+    , benchmarks/*.hs
 
 library
   hs-source-dirs:    src

@@ -25,17 +25,9 @@ but can build from the repository following these steps:
   1. [cabal test]
 
 
-## Contributing
-
-Just submit a pull request for small stuff, but please get in touch
-beforehand before sinking a lot of effort into major/API changes.
-
-Remember adding your name to the AUTHORS file.
-
-
 ## Usage
 
-Simple Pub/sub example:
+Simple pub/sub example:
 
 Server:
 
