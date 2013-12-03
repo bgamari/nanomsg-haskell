@@ -169,75 +169,62 @@ data Endpoint = Endpoint CInt
 data Socket a = Socket a CInt
     deriving (Eq, Show)
 
--- | Typeclass used by all sockets, to extract their C type.
-class Protocol a where
-    -- | Returns the C enum value for each type. E.g. Pair => #const NN_PAIR
-    protocolId :: a -> CInt
+-- | Typeclass for all sockets
+class SocketType a where
+    socketType :: a -> CInt -- ^ Returns the C enum value for each type. E.g. Pair => #const NN_PAIR
 
-instance Protocol Pair where
-    protocolId Pair = #const NN_PAIR
+instance SocketType Pair where
+    socketType Pair = #const NN_PAIR
 
-instance Protocol Req where
-    protocolId Req = #const NN_REQ
+instance SocketType Req where
+    socketType Req = #const NN_REQ
 
-instance Protocol Rep where
-    protocolId Rep = #const NN_REP
+instance SocketType Rep where
+    socketType Rep = #const NN_REP
 
-instance Protocol Pub where
-    protocolId Pub = #const NN_PUB
+instance SocketType Pub where
+    socketType Pub = #const NN_PUB
 
-instance Protocol Sub where
-    protocolId Sub = #const NN_SUB
+instance SocketType Sub where
+    socketType Sub = #const NN_SUB
 
-instance Protocol Surveyor where
-    protocolId Surveyor = #const NN_SURVEYOR
+instance SocketType Surveyor where
+    socketType Surveyor = #const NN_SURVEYOR
 
-instance Protocol Respondent where
-    protocolId Respondent = #const NN_RESPONDENT
+instance SocketType Respondent where
+    socketType Respondent = #const NN_RESPONDENT
 
-instance Protocol Push where
-    protocolId Push = #const NN_PUSH
+instance SocketType Push where
+    socketType Push = #const NN_PUSH
 
-instance Protocol Pull where
-    protocolId Pull = #const NN_PULL
+instance SocketType Pull where
+    socketType Pull = #const NN_PULL
 
-instance Protocol Bus where
-    protocolId Bus = #const NN_BUS
+instance SocketType Bus where
+    socketType Bus = #const NN_BUS
 
 
 -- | Typeclass restricting which sockets can use the send function.
-class SendType a
-instance SendType Pair
-instance SendType Req
-instance SendType Rep
-instance SendType Pub
-instance SendType Surveyor
-instance SendType Respondent
-instance SendType Push
-instance SendType Bus
+class (SocketType a) => Sender a
+instance Sender Pair
+instance Sender Req
+instance Sender Rep
+instance Sender Pub
+instance Sender Surveyor
+instance Sender Respondent
+instance Sender Push
+instance Sender Bus
 
 -- | Typeclass for sockets that implement recv
-class RecvType a
-instance RecvType Pair
-instance RecvType Req
-instance RecvType Rep
-instance RecvType Sub
-instance RecvType Surveyor
-instance RecvType Respondent
-instance RecvType Pull
-instance RecvType Bus
-
--- | Sub socket functionality
-class SubscriberType a
-instance SubscriberType Sub
-
--- | Surveyor socket functionality
-class SurvType a
-instance SurvType Surveyor
-
--- | Req socket functionality
-class ReqType a
-instance ReqType Req
+class (SocketType a) => Receiver a
+instance Receiver Pair
+instance Receiver Req
+instance Receiver Rep
+instance Receiver Sub
+instance Receiver Surveyor
+instance Receiver Respondent
+instance Receiver Pull
+instance Receiver Bus
 
 
 -- * Error handling
@@ -394,9 +381,9 @@ NN_EXPORT void *nn_allocmsg (size_t size, int type);
 -- | Creates a socket. Connections are formed using 'bind' or 'connect'.
 --
 -- See also: 'close'.
-socket :: (Protocol a) => a -> IO (Socket a)
+socket :: (SocketType a) => a -> IO (Socket a)
 socket t = do
-    sid <- throwErrnoIfMinus1 "socket" $ c_nn_socket (#const AF_SP) (protocolId t)
+    sid <- throwErrnoIfMinus1 "socket" $ c_nn_socket (#const AF_SP) (socketType t)
     return $ Socket t sid
 
 -- | Creates a socket and runs your action with it.
@@ -409,7 +396,7 @@ socket t = do
 -- >     replicateM 10 (recv sub)
 --
 -- Ensures the socket is closed when your action is done.
-withSocket :: (Protocol a) => a -> (Socket a -> IO b) -> IO b
+withSocket :: (SocketType a) => a -> (Socket a -> IO b) -> IO b
 withSocket t = bracket (socket t) close
 
 -- | Binds the socket to a local interface.
@@ -457,7 +444,7 @@ shutdown (Socket _ sid) (Endpoint eid) =
 -- | Blocking function for sending a message
 --
 -- See also: 'recv', 'recv''.
-send :: (SendType a, Protocol a) => Socket a -> ByteString -> IO ()
+send :: Sender a => Socket a -> ByteString -> IO ()
 send (Socket t sid) string =
     U.unsafeUseAsCStringLen string $ \(ptr, len) ->
         throwErrnoIfMinus1RetryMayBlock_
@@ -466,7 +453,7 @@ send (Socket t sid) string =
             (getOptionFd (Socket t sid) (#const NN_SNDFD) >>= threadWaitWrite)
 
 -- | Blocking receive.
-recv :: (RecvType a, Protocol a) => Socket a -> IO ByteString
+recv :: Receiver a => Socket a -> IO ByteString
 recv (Socket t sid) =
     alloca $ \ptr -> do
         len <- throwErrnoIfMinus1RetryMayBlock
@@ -479,7 +466,7 @@ recv (Socket t sid) =
         return str
 
 -- | Nonblocking receive function.
-recv' :: (RecvType a, Protocol a) => Socket a -> IO (Maybe ByteString)
+recv' :: Receiver a => Socket a -> IO (Maybe ByteString)
 recv' (Socket _ sid) =
     alloca $ \ptr -> do
         len <- c_nn_recv_foreignbuf sid ptr (#const NN_MSG) (#const NN_DONTWAIT)
@@ -496,14 +483,14 @@ recv' (Socket _ sid) =
                     else throwErrno "recv'"
 
 -- | Subscribe to a given subject string.
-subscribe :: (SubscriberType a, Protocol a) => Socket a -> ByteString -> IO ()
+subscribe :: Socket Sub -> ByteString -> IO ()
 subscribe (Socket t sid) string =
-    setOption (Socket t sid) (protocolId t) (#const NN_SUB_SUBSCRIBE) (StringOption string)
+    setOption (Socket t sid) (socketType t) (#const NN_SUB_SUBSCRIBE) (StringOption string)
 
 -- | Unsubscribes from a subject.
-unsubscribe :: (SubscriberType a, Protocol a) => Socket a -> ByteString -> IO ()
+unsubscribe :: Socket Sub -> ByteString -> IO ()
 unsubscribe (Socket t sid) string =
-    setOption (Socket t sid) (protocolId t) (#const NN_SUB_UNSUBSCRIBE) (StringOption string)
+    setOption (Socket t sid) (socketType t) (#const NN_SUB_UNSUBSCRIBE) (StringOption string)
 
 -- | Closes the socket. Any buffered inbound messages that were not yet
 -- received by the application will be discarded. The library will try to
@@ -714,7 +701,7 @@ setIpv4Only s val =
 -- resent.
 --
 -- Default value is 60000 (1 minute).
-requestResendInterval :: (ReqType a) => Socket a -> IO Int
+requestResendInterval :: Socket Req -> IO Int
 requestResendInterval s =
     fromIntegral <$> getOption s (#const NN_REQ) (#const NN_REQ_RESEND_IVL)
 
@@ -723,7 +710,7 @@ requestResendInterval s =
 -- resent.
 --
 -- Default value is 60000 (1 minute).
-setRequestResendInterval :: (ReqType a) => Socket a -> Int -> IO ()
+setRequestResendInterval :: Socket Req -> Int -> IO ()
 setRequestResendInterval s val =
     setOption s (#const NN_REQ) (#const NN_REQ_RESEND_IVL) (IntOption val)
 
