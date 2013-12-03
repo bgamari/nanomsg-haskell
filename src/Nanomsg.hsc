@@ -35,6 +35,9 @@ module Nanomsg
         , Socket
         , Endpoint
         , NNException
+        , SocketType
+        , Sender
+        , Receiver
         -- * Operations
         -- ** General operations
         , socket
