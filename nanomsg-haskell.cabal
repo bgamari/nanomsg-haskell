@@ -1,5 +1,5 @@
 name:                nanomsg-haskell
-version:             0.2.0
+version:             0.2.1.1
 synopsis:
   Bindings to the nanomsg library
 description:
