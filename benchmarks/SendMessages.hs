@@ -1,6 +1,6 @@
 module Main where
 
-import Nanomsg
+import Network.Nanomsg
 import Criterion.Main
 import qualified Data.ByteString.Char8 as C
 import Control.Monad (replicateM_)
