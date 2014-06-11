@@ -2,9 +2,9 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Main where
 
-import Nanomsg
-import Test.Framework.TH (defaultMainGenerator)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Network.Nanomsg
+import Test.Tasty.TH (defaultMainGenerator)
+import Test.Tasty.QuickCheck (testProperty)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Data.ByteString (ByteString)

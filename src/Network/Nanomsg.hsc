@@ -1,6 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface, DeriveDataTypeable #-}
 -- |
--- Module:          Nanomsg
+-- Module:          Network.Nanomsg
 -- Copyright:       (c) 2013 Ivar Nymoen
 -- License:         MIT
 -- Stability:       experimental
@@ -17,7 +17,7 @@
 -- Socket type documentation is adapted or quoted verbatim from the
 -- nanomsg manual. Please refer to nanomsg.org for information on
 -- how to use the library.
-module Nanomsg
+module Network.Nanomsg
         (
         -- * Types
         -- ** Socket types
