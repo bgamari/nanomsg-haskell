@@ -1,7 +1,7 @@
 module Main where
 
 import qualified Nanomsg as N
-import qualified System.ZMQ3.Monadic as Z
+import qualified System.ZMQ4.Monadic as Z
 import Criterion.Main
 import qualified Data.ByteString.Char8 as C
 import Control.Monad (replicateM_)
@@ -57,16 +57,16 @@ zThr size count bindString connString = Z.runZMQ $ do
 main :: IO ()
 main = defaultMain
     [ bench "nanomsg-haskell: 40 bytes x 2k messages, lat, tcp"     $ nfIO $ nLat    40 1000 "tcp://*:5566" "tcp://localhost:5566"
-    , bench "zeromq3-haskell: 40 bytes x 2k messages, lat, tcp"     $ nfIO $ zLat    40 1000 "tcp://*:5566" "tcp://localhost:5566"
+    , bench "zeromq4-haskell: 40 bytes x 2k messages, lat, tcp"     $ nfIO $ zLat    40 1000 "tcp://*:5566" "tcp://localhost:5566"
     , bench "nanomsg-haskell: 20k bytes x 40 messages, lat, tcp"    $ nfIO $ nLat 20000   20 "tcp://*:5566" "tcp://localhost:5566"
-    , bench "zeromq3-haskell: 20k bytes x 40 messages, lat, tcp"    $ nfIO $ zLat 20000   20 "tcp://*:5566" "tcp://localhost:5566"
+    , bench "zeromq4-haskell: 20k bytes x 40 messages, lat, tcp"    $ nfIO $ zLat 20000   20 "tcp://*:5566" "tcp://localhost:5566"
     , bench "nanomsg-haskell: 40 bytes x 2k messages, lat, inproc"  $ nfIO $ nLat    40 1000 "inproc://bench" "inproc://bench"
-    , bench "zeromq3-haskell: 40 bytes x 2k messages, lat, inproc"  $ nfIO $ zLat    40 1000 "inproc://bench" "inproc://bench"
+    , bench "zeromq4-haskell: 40 bytes x 2k messages, lat, inproc"  $ nfIO $ zLat    40 1000 "inproc://bench" "inproc://bench"
     , bench "nanomsg-haskell: 20k bytes x 40 messages, lat, inproc" $ nfIO $ nLat 20000   20 "inproc://bench" "inproc://bench"
-    , bench "zeromq3-haskell: 20k bytes x 40 messages, lat, inproc" $ nfIO $ zLat 20000   20 "inproc://bench" "inproc://bench"
+    , bench "zeromq4-haskell: 20k bytes x 40 messages, lat, inproc" $ nfIO $ zLat 20000   20 "inproc://bench" "inproc://bench"
     , bench "nanomsg-haskell: 40 bytes x 10k messages, throughput, tcp"     $ nfIO $ nThr 40 100 "tcp://*:5566" "tcp://localhost:5566"
-    , bench "zeromq3-haskell: 40 bytes x 10k messages, throughput, tcp"     $ nfIO $ zThr 40 100 "tcp://*:5566" "tcp://localhost:5566"
+    , bench "zeromq4-haskell: 40 bytes x 10k messages, throughput, tcp"     $ nfIO $ zThr 40 100 "tcp://*:5566" "tcp://localhost:5566"
     , bench "nanomsg-haskell: 40 bytes x 10k messages, throughput, inproc"  $ nfIO $ nThr 40 100 "inproc://bench" "inproc://bench"
-    , bench "zeromq3-haskell: 40 bytes x 10k messages, throughput, inproc"  $ nfIO $ zThr 40 100 "inproc://bench" "inproc://bench"
+    , bench "zeromq4-haskell: 40 bytes x 10k messages, throughput, inproc"  $ nfIO $ zThr 40 100 "inproc://bench" "inproc://bench"
     ]
 
