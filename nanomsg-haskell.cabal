@@ -23,6 +23,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:
     README.md
+    , CONTRIBUTORS
     , tests/*.hs
     , benchmarks/*.hs
 
