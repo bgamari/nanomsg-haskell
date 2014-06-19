@@ -27,6 +27,7 @@ cabal-version:       >=1.10
 extra-source-files:
     README.md
     , CONTRIBUTORS
+    , changelog
     , tests/*.hs
     , benchmarks/*.hs
 
