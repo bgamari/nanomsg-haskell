@@ -7,16 +7,16 @@
 --
 -- This is a Haskell binding for the nanomsg library: <http://nanomsg.org/>.
 --
--- There's support for blocking send and recv, a non-blocking receive,
+-- There's support for (evented) blocking send and recv, a non-blocking receive,
 -- and for all the socket types and the functions you need to wire
 -- them up and tear them down again.
 --
 -- Most socket options are available through accessor and mutator
 -- functions. Sockets are typed, transports are not.
 --
--- Socket type documentation is adapted or quoted verbatim from the
--- nanomsg manual. Please refer to nanomsg.org for information on
--- how to use the library.
+-- The documentation is adapted or quoted verbatim from the nanomsg manual,
+-- please refer to nanomsg.org for authoritative info.
+-- There's a simple code example in <https://github.com/ivarnymoen/nanomsg-haskell#usage README.md>.
 module Nanomsg
         (
         -- * Types
@@ -111,52 +111,61 @@ import System.Posix.Types (Fd(..))
 -- will block until it’s possible to send the message.
 data Pair = Pair
 
--- | Used to implement a client application that sends requests
--- and receives replies. The socket will resend requests automatically
+-- | Request socket. Pairs with 'Rep' sockets.
+--
+-- The socket will resend requests automatically
 -- if there's no reply within a given time. The default timeout
 -- is 1 minute.
 --
--- See also 'setRequestResendInterval'.
+-- See also 'Rep', 'setRequestResendInterval'.
 data Req = Req
 
--- | Used to implement a stateless worker that receives requests
--- and sends replies.
+-- | Reply socket.
+--
+-- See also 'Req'.
 data Rep = Rep
 
--- | This socket is used to distribute messages to multiple destinations.
+-- | Publish socket. Pairs with subscribe sockets.
+--
+-- See also 'Sub'.
 data Pub = Pub
 
--- | Receives messages from the publisher. Only messages that the socket is
--- subscribed to are received. When the socket is created there are no
--- subscriptions and thus no messages will be received.
+-- | Subscribe socket.
 --
--- See also 'subscribe' and 'unsubscribe'.
+-- Only messages that the socket is subscribed to are received. When the socket
+-- is created there are no subscriptions and thus no messages will be received.
+--
+-- See also 'Pub', 'subscribe' and 'unsubscribe'.
 data Sub = Sub
 
 -- | Surveyor and respondent are used to broadcast a survey to multiple
 -- locations and gather the responses.
 --
--- This socket is used to send the survey. The survey is delivered to all
--- the connected respondents. Once the query is sent, the socket can be used
+-- This socket is used to send a survey. The survey is delivered to all
+-- onnected respondents. Once the query is sent, the socket can be used
 -- to receive the responses.
 --
 -- When the survey deadline expires, receive will throw an NNException.
 --
--- See also 'setSurveyorDeadline'
+-- See also 'Respondent', 'setSurveyorDeadline'.
 data Surveyor = Surveyor
 
 -- | Used to respond to a survey. Survey is received using receive,
 -- response is sent using send. This socket can be connected to
 -- at most one peer.
+--
+-- See also 'Surveyor'.
 data Respondent = Respondent
 
 -- | Push and Pull sockets fair queue messages from one processing step, load
 -- balancing them among instances of the next processing step.
 --
--- This socket is used to send messages to a cluster of load-balanced nodes.
+-- See also 'Pull'.
 data Push = Push
 
--- | This socket is used to receive a message from a cluster of nodes.
+-- | Pull socket.
+--
+-- See also 'Push'.
 data Pull = Pull
 
 -- | Broadcasts messages from any node to all other nodes in the topology.
