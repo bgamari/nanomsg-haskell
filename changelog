@@ -1,4 +1,4 @@
 0.2.2
   * Added a thin binary based serialization layer
-  * Benchmarks now depend on ZMQ4
+  * Benchmarks now depends on ZMQ4
 
