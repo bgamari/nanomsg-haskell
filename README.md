@@ -16,7 +16,7 @@ You would normally make sure the nanomsg library is on your system and then
 install from Hackage using "cabal update && cabal install nanomsg-haskell",
 but can build from the repository following these steps:
 
-  1. Build and install nanomsg (and zmq3, if you are building benchmarks)
+  1. Build and install nanomsg (and zeromq, if you are building benchmarks)
   1. git clone https://github.com/ivarnymoen/nanomsg-haskell
   1. cd nanomsg-haskell && cabal sandbox init
   1. cabal install --dependencies-only [--enable-tests] [--enable-benchmarks]
