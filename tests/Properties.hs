@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Main where
 
@@ -24,7 +25,7 @@ prop_reverse xs =
 -- test Pub and Sub sockets
 prop_PubSub :: Property
 prop_PubSub = monadicIO $ do
-    msgs <- pick arbitrary
+    (msgs :: [ByteString]) <- pick arbitrary
     pre $ not (null msgs)
     res <- run $ do
         pub <- socket Pub
@@ -61,7 +62,7 @@ prop_PubSub = monadicIO $ do
 -- test Pair sockets
 prop_Pair :: Property
 prop_Pair = monadicIO $ do
-    msgs <- pick arbitrary
+    (msgs :: [ByteString]) <- pick arbitrary
     pre $ not (null msgs)
     res <- run $ do
         s1 <- socket Pair
@@ -80,7 +81,7 @@ prop_Pair = monadicIO $ do
 -- test Pipeline (Push & Pull) sockets
 prop_Pipeline :: Property
 prop_Pipeline = monadicIO $ do
-    msgs <- pick arbitrary
+    (msgs :: [ByteString]) <- pick arbitrary
     pre $ not (null msgs)
     res <- run $ do
         push <- socket Push
@@ -115,7 +116,7 @@ prop_Pipeline = monadicIO $ do
 -- test Req and Rep sockets
 prop_ReqRep :: Property
 prop_ReqRep = monadicIO $ do
-    msgs <- pick arbitrary
+    (msgs :: [ByteString]) <- pick arbitrary
     pre $ not (null msgs)
     res <- run $ do
         req <- socket Req
@@ -133,7 +134,7 @@ prop_ReqRep = monadicIO $ do
 -- test Bus socket
 prop_Bus :: Property
 prop_Bus = monadicIO $ do
-    msgs <- pick arbitrary
+    (msgs :: [ByteString]) <- pick arbitrary
     pre $ not (null msgs)
     res <- run $ do
         -- Probably not how you're supposed to connect Bus nodes..

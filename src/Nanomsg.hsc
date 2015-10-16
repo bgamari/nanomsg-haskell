@@ -327,52 +327,52 @@ throwErrnoIfMinus1RetryMayBlock_ = throwErrnoIfRetryMayBlock_ (== -1)
 -- * FFI functions
 
 -- NN_EXPORT int nn_socket (int domain, int protocol);
-foreign import ccall unsafe "nn.h nn_socket"
+foreign import ccall safe "nn.h nn_socket"
     c_nn_socket :: CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_bind (int s, const char *addr);
-foreign import ccall unsafe "nn.h nn_bind"
+foreign import ccall safe "nn.h nn_bind"
     c_nn_bind :: CInt -> CString -> IO CInt
 
 -- NN_EXPORT int nn_connect (int s, const char *addr);
-foreign import ccall unsafe "nn.h nn_connect"
+foreign import ccall safe "nn.h nn_connect"
     c_nn_connect :: CInt -> CString -> IO CInt
 
 -- NN_EXPORT int nn_shutdown (int s, int how);
-foreign import ccall unsafe "nn.h nn_shutdown"
+foreign import ccall safe "nn.h nn_shutdown"
     c_nn_shutdown :: CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_send (int s, const void *buf, size_t len, int flags);
-foreign import ccall unsafe "nn.h nn_send"
+foreign import ccall safe "nn.h nn_send"
     c_nn_send :: CInt -> CString -> CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
-foreign import ccall unsafe "nn.h nn_recv"
+foreign import ccall safe "nn.h nn_recv"
     c_nn_recv :: CInt -> Ptr CString -> CInt -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_freemsg (void *msg);
-foreign import ccall unsafe "nn.h nn_freemsg"
+foreign import ccall safe "nn.h nn_freemsg"
     c_nn_freemsg :: Ptr CChar -> IO CInt
 
 -- NN_EXPORT int nn_close (int s);
-foreign import ccall unsafe "nn.h nn_close"
+foreign import ccall safe "nn.h nn_close"
     c_nn_close :: CInt -> IO CInt
 
 -- NN_EXPORT void nn_term (void);
-foreign import ccall unsafe "nn.h nn_term"
+foreign import ccall safe "nn.h nn_term"
     c_nn_term :: IO ()
 
 -- NN_EXPORT int nn_setsockopt (int s, int level, int option, const void *optval, size_t optvallen);
-foreign import ccall unsafe "nn.h nn_setsockopt"
+foreign import ccall safe "nn.h nn_setsockopt"
     c_nn_setsockopt :: CInt -> CInt -> CInt -> Ptr a -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_getsockopt (int s, int level, int option, void *optval, size_t *optvallen);
-foreign import ccall unsafe "nn.h nn_getsockopt"
+foreign import ccall safe "nn.h nn_getsockopt"
     c_nn_getsockopt :: CInt -> CInt -> CInt -> Ptr a -> Ptr CInt -> IO CInt
 
 -- /*  Resolves system errors and native errors to human-readable string.        */
 -- NN_EXPORT const char *nn_strerror (int errnum);
-foreign import ccall unsafe "nn.h nn_strerror"
+foreign import ccall safe "nn.h nn_strerror"
     c_nn_strerror :: CInt -> IO CString
 
 -- /*  This function retrieves the errno as it is known to the library.          */
@@ -380,7 +380,7 @@ foreign import ccall unsafe "nn.h nn_strerror"
 -- /*  where the library is compiled with certain CRT library (on Windows) and   */
 -- /*  linked to an application that uses different CRT library.                 */
 -- NN_EXPORT int nn_errno (void);
-foreign import ccall unsafe "nn.h nn_errno"
+foreign import ccall safe "nn.h nn_errno"
     c_nn_errno :: IO CInt
 
 {-
