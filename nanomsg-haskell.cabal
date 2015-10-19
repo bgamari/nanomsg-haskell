@@ -4,16 +4,13 @@ synopsis:
   Bindings to the nanomsg library
 description:
   This is a Haskell binding for the nanomsg library: <http://nanomsg.org/>.
-
+  .
   There's support for (evented) blocking send and recv, a non-blocking receive,
   and for all the socket types and the functions you need to wire
   them up and tear them down again.
-
+  .
   Most sockets options are available through accessor and mutator
   functions. Sockets are typed, transports are not.
-
-  The module Nanomsg.Binary provides a simple Binary based serialization
-  layer over send and receive.
 
 homepage:            https://github.com/ivarnymoen/nanomsg-haskell
 license:             MIT
@@ -24,19 +21,22 @@ copyright:           Copyright (c) 2013 Ivar Nymoen
 category:            Network
 build-type:          Simple
 cabal-version:       >=1.10
+tested-with:
+  GHC == 7.10.2
 extra-source-files:
-    README.md
-    , CONTRIBUTORS
-    , changelog
-    , tests/*.hs
-    , benchmarks/*.hs
+  README.md
+  , CONTRIBUTORS
+  , changelog
+  , tests/*.hs
+  , benchmarks/*.hs
 
 library
   hs-source-dirs:    src
-  ghc-options:       -O2 -Wall
+  ghc-options:       -O2 -Wall -fwarn-tabs
   default-language:  Haskell2010
-  exposed-modules:   Nanomsg
-                     Nanomsg.Binary
+  exposed-modules:
+    Nanomsg
+    Nanomsg.Binary
   default-extensions:  ForeignFunctionInterface, DeriveDataTypeable
   includes:          nanomsg/nn.h
   extra-libraries:   nanomsg
@@ -49,7 +49,7 @@ test-suite tests
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
   main-is:           Properties.hs
-  ghc-options:       -O2 -Wall -threaded
+  ghc-options:       -O2 -Wall -fwarn-tabs -threaded "-with-rtsopts=-N" -rtsopts
   default-language:  Haskell2010
   build-depends:
     base >= 4.5 && < 5,
@@ -64,7 +64,7 @@ test-suite tests-binary
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
   main-is:           BinaryProperties.hs
-  ghc-options:       -O2 -Wall -threaded
+  ghc-options:       -O2 -Wall -fwarn-tabs -threaded "-with-rtsopts=-N" -rtsopts
   default-language:  Haskell2010
   build-depends:
     base >= 4.5 && < 5,
@@ -76,7 +76,6 @@ test-suite tests-binary
     test-framework-quickcheck2,
     test-framework-th
 
-
 source-repository head
   type:              git
   location:          https://github.com/ivarnymoen/nanomsg-haskell
@@ -84,7 +83,7 @@ source-repository head
 benchmark send-messages
   type:              exitcode-stdio-1.0
   main-is:           SendMessages.hs
-  ghc-options:       -O2 -Wall -threaded
+  ghc-options:       -O2 -Wall -fwarn-tabs -threaded "-with-rtsopts=-N" -rtsopts
   default-language:  Haskell2010
   hs-source-dirs:    benchmarks
   build-depends:
@@ -96,7 +95,7 @@ benchmark send-messages
 benchmark vs-zeromq-bindings
   type:              exitcode-stdio-1.0
   main-is:           Zmq.hs
-  ghc-options:       -O2 -Wall -threaded
+  ghc-options:       -O2 -Wall -fwarn-tabs -threaded "-with-rtsopts=-N" -rtsopts
   default-language:  Haskell2010
   hs-source-dirs:    benchmarks
   build-depends:

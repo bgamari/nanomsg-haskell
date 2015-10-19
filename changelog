@@ -1,4 +1,8 @@
+0.2.3
+  * Switched to safe ffi calls to play better with the runtime
+  * Tests fixed for ghc 7.10
+  * Some minor tweaks to docs and metadata
 0.2.2
-  * Added a thin binary based serialization layer
+  * Added a thin Binary based serialization layer
   * Benchmarks now depend on ZMQ4
 

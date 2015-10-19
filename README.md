@@ -2,7 +2,7 @@
 
 This is a Haskell binding for the nanomsg library: <http://nanomsg.org/>.
 
-There's support for [blocking](http://hackage.haskell.org/packages/archive/base/latest/doc/html/Control-Concurrent.html#v:threadWaitRead) send and recv, a non-blocking receive,
+There's support for [(evented)](http://hackage.haskell.org/packages/archive/base/latest/doc/html/Control-Concurrent.html#v:threadWaitRead) blocking send and recv, a non-blocking receive,
 and for all the socket types and the functions you need to wire them up and
 tear them down again.
 
@@ -13,8 +13,7 @@ functions. Sockets are typed, transports are not.
 ## Building
 
 You would normally make sure the nanomsg library is on your system and then
-install from Hackage using "cabal update && cabal install nanomsg-haskell",
-but can build from the repository following these steps:
+install from Hackage, but can build from source following these steps:
 
   1. Build and install nanomsg (and zeromq, if you are building benchmarks)
   1. git clone https://github.com/ivarnymoen/nanomsg-haskell
@@ -39,10 +38,10 @@ import Control.Monad (mapM_)
 import Control.Concurrent (threadDelay)
 
 main :: IO ()
-main = do
+main =
     withSocket Pub $ \s -> do
         _ <- bind s "tcp://*:5560"
-        mapM_ (\num -> sendNumber s num) (cycle [1..1000000])
+        mapM_ (\num -> sendNumber s num) (cycle [1..1000000 :: Int])
     where
         sendNumber s number = do
             threadDelay 1000        -- let's conserve some cycles
@@ -59,7 +58,7 @@ import qualified Data.ByteString.Char8 as C
 import Control.Monad (forever)
 
 main :: IO ()
-main = do
+main =
     withSocket Sub $ \s -> do
         _ <- connect s "tcp://localhost:5560"
         subscribe s $ C.pack ""
@@ -87,5 +86,5 @@ main =
             msg <- recv' s
             C.putStrLn $ case msg of
                 Nothing -> C.pack "No message"
-                Just s  -> s
+                Just m  -> m
 ```
