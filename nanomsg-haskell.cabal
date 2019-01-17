@@ -16,7 +16,7 @@ homepage:            https://github.com/ivarnymoen/nanomsg-haskell
 license:             MIT
 license-file:        LICENSE
 author:              Ivar Nymoen
-maintainer:          ivar dot nymoen at gmail dot com
+maintainer:          Ben Gamari <ben@smart-cactus.org>
 copyright:           Copyright (c) 2013 the nanomsg-haskell authors
 category:            Network
 build-type:          Simple
