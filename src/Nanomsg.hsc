@@ -467,7 +467,7 @@ send (Socket t sid) string =
         throwErrnoIfMinus1RetryMayBlock_
             "send"
             (c_nn_send sid ptr (fromIntegral len) (#const NN_DONTWAIT))
-            (getOptionFd (Socket t sid) (#const NN_SNDFD) >>= threadWaitWrite)
+            (getOptionFd (Socket t sid) (#const NN_SNDFD) >>= threadWaitRead)
 
 -- | Blocking receive.
 recv :: Receiver a => Socket a -> IO ByteString

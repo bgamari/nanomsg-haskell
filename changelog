@@ -1,3 +1,6 @@
+Unreleased
+  * Fixed bug in nonblocking send where `threadWaitWrite` was used instead of
+    `threadWaitRead`
 0.2.4
   * Bumped upper bound on binary
 0.2.3
