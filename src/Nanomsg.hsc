@@ -59,6 +59,8 @@ module Nanomsg
         , setSndBuf
         , rcvBuf
         , setRcvBuf
+        , rcvMaxSize
+        , setRcvMaxSize
         , reconnectInterval
         , setReconnectInterval
         , reconnectIntervalMax
@@ -619,6 +621,24 @@ rcvBuf s =
 setRcvBuf :: Socket a -> Int -> IO ()
 setRcvBuf s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_RCVBUF) (IntOption val)
+
+-- | Maximum message size that can be received, in bytes.
+-- Negative value means that the received size is limited only by available addressable memory.
+-- The type of this option is int.
+--
+-- Default is 1024kB.
+rcvMaxSize :: Socket a -> IO Int
+rcvMaxSize s =
+    fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_RCVMAXSIZE)
+
+-- | Maximum message size that can be received, in bytes.
+-- Negative value means that the received size is limited only by available addressable memory.
+-- The type of this option is int.
+--
+-- Default is 1024kB.
+setRcvMaxSize :: Socket a -> Int -> IO ()
+setRcvMaxSize s val =
+    setOption s (#const NN_SOL_SOCKET) (#const NN_RCVMAXSIZE) (IntOption val)
 
 -- Think I'll just skip these. There's recv' for nonblocking receive, and
 -- adding a return value to send seems awkward.
