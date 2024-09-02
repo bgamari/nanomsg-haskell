@@ -22,7 +22,7 @@ category:            Network
 build-type:          Simple
 cabal-version:       >=1.10
 tested-with:
-  GHC == 7.10.2
+  GHC == 9.4.7
 extra-source-files:
   README.md
   , CONTRIBUTORS
