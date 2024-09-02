@@ -3,4 +3,4 @@
 /cabal-dev
 /dist
 *.swp
-
+/dist-newstyle
