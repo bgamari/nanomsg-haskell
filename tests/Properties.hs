@@ -1,11 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Main where
+module Properties where
 
 import Nanomsg
-import Test.Framework.TH (defaultMainGenerator)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Data.ByteString (ByteString)
@@ -206,7 +204,3 @@ prop_TestOptions = monadicIO $ do
         return [v1 == 1, v2 == 0, v3 == 30000, v4 == 0, v5 == 1, v6 == 7,
             v7 == 50, v8 == 400, v9 == 200000, v10 == 150000, v11 == 500, v12 == 2000]
     assert $ and res
-
-main :: IO ()
-main = $defaultMainGenerator
-
