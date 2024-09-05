@@ -348,7 +348,7 @@ foreign import ccall safe "nn.h nn_send"
 
 -- NN_EXPORT int nn_recv (int s, void *buf, size_t len, int flags);
 foreign import ccall safe "nn.h nn_recv"
-    c_nn_recv :: CInt -> Ptr CString -> CInt -> CInt -> IO CInt
+    c_nn_recv :: CInt -> Ptr CString -> CSize -> CInt -> IO CInt
 
 -- NN_EXPORT int nn_freemsg (void *msg);
 foreign import ccall safe "nn.h nn_freemsg"
