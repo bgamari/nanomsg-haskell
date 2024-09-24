@@ -575,6 +575,7 @@ getOptionFd (Socket _ sid) option =
 linger :: Socket a -> IO Int
 linger s =
     fromIntegral <$> getOption s (#const NN_SOL_SOCKET) (#const NN_LINGER)
+{-# DEPRECATED linger "NN_LINGER is no longer supported by nanomsg" #-}
 
 -- | Specifies how long should the socket try to send pending outbound
 -- messages after close has been called, in milliseconds.
@@ -583,6 +584,7 @@ linger s =
 setLinger :: Socket a -> Int -> IO ()
 setLinger s val =
     setOption s (#const NN_SOL_SOCKET) (#const NN_LINGER) (IntOption val)
+{-# DEPRECATED setLinger "NN_LINGER is no longer supported by nanomsg" #-}
 
 -- | Size of the send buffer, in bytes. To prevent blocking for messages
 -- larger than the buffer, exactly one message may be buffered in addition
