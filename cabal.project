@@ -1,2 +1,5 @@
 packages: .
 tests: true
+
+package nanomsg-haskell
+  test-options: --num-threads=1
