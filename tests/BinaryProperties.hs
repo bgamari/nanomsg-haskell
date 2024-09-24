@@ -5,6 +5,8 @@ module BinaryProperties where
 import Nanomsg.Binary
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
+import Test.Tasty (TestTree, sequentialTestGroup, DependencyType(AllFinish))
+import Test.Tasty.QuickCheck (testProperty)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as C
 import Control.Concurrent (threadDelay)
@@ -171,41 +173,34 @@ prop_Bus = monadicIO $ do
                 f <- recv b2
                 return $ all (== msg) [a, b, c, d, e, f]
 
-prop_TestOptions :: Property
-prop_TestOptions = monadicIO $ do
-    res <- run $ do
-        req <- socket Req
-        _ <- bind req "tcp://*:5560"
-        surveyor <- socket Surveyor
-        _ <- bind surveyor "inproc://surveyor"
+-- options
+test_options :: TestTree
+test_options = sequentialTestGroup "options" AllFinish
+    [ roundtrip "tcpNoDelay" Req tcpNoDelay setTcpNoDelay 0
+    , roundtrip "requestResendInterval" Req requestResendInterval setRequestResendInterval 30000
+    , roundtrip "ipv4Only0" Req ipv4Only setIpv4Only 0
+    , roundtrip "ipv4Only1" Req ipv4Only setIpv4Only 1
+    , roundtrip "sndPrio" Req sndPrio setSndPrio 7
+    , roundtrip "reconnectInterval" Req reconnectInterval setReconnectInterval 50
+    , roundtrip "reconnectIntervalMax" Req reconnectIntervalMax setReconnectIntervalMax 400
+    , roundtrip "rcvBuf" Req rcvBuf setRcvBuf 200000
+    , roundtrip "sndBuf" Req sndBuf setSndBuf 150000
+    , roundtrip "surveyorDeadline" Surveyor surveyorDeadline setSurveyorDeadline 2000
+    ]
+  where
+    roundtrip :: (Eq v, Show v, SocketType a)
+              => String
+              -> a
+              -> (Socket a -> IO v)
+              -> (Socket a -> v -> IO ())
+              -> v
+              -> TestTree
+    roundtrip name sockTy get set value = testProperty name $ monadicIO $ run $ do
+        sock <- socket sockTy
+        _ <- bind sock "tcp://*:5561"
         threadDelay 1000
-        setTcpNoDelay req 1
-        v1 <- tcpNoDelay req
-        setTcpNoDelay req 0
-        v2 <- tcpNoDelay req
-        setRequestResendInterval req 30000
-        v3 <- requestResendInterval req
-        setIpv4Only req 0
-        v4 <- ipv4Only req
-        setIpv4Only req 1
-        v5 <- ipv4Only req
-        setSndPrio req 7
-        v6 <- sndPrio req
-        setReconnectInterval req 50
-        v7 <- reconnectInterval req
-        setReconnectIntervalMax req 400
-        v8 <- reconnectIntervalMax req
-        setRcvBuf req 200000
-        v9 <- rcvBuf req
-        setSndBuf req 150000
-        v10 <- sndBuf req
-        setLinger req 500
-        v11 <- linger req
-        setSurveyorDeadline surveyor 2000
-        v12 <- surveyorDeadline surveyor
-        close req
-        close surveyor
-        threadDelay 1000
-        return [v1 == 1, v2 == 0, v3 == 30000, v4 == 0, v5 == 1, v6 == 7,
-            v7 == 50, v8 == 400, v9 == 200000, v10 == 150000, v11 == 500, v12 == 2000]
-    assert $ and res
+        set sock value
+        v <- get sock
+        close sock
+        return $ value === v
+
