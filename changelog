@@ -2,6 +2,8 @@
   * Deprecate `NN_LINGER` option
   * Improve testsuite reliability
   * Add support for `NN_RCVMAXSIZE` option
+  * Fixed bug in nonblocking send where `threadWaitWrite` was used instead of
+    `threadWaitRead`
 
 0.2.4
   * Bumped upper bound on binary
