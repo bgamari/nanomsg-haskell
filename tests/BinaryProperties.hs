@@ -204,3 +204,13 @@ test_options = sequentialTestGroup "options" AllFinish
         close sock
         return $ value === v
 
+tests :: TestTree
+tests = sequentialTestGroup "BinaryProperties" AllFinish
+    [ testProperty "reverse" prop_reverse
+    , testProperty "PubSub" prop_PubSub
+    , testProperty "Pair" prop_Pair
+    , testProperty "Pipeline" prop_Pipeline
+    , testProperty "ReqRep" prop_ReqRep
+    , testProperty "Bus" prop_Bus
+    ]
+

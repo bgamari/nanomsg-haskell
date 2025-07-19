@@ -1,5 +1,6 @@
 0.2.5
   * Deprecate `NN_LINGER` option
+  * Improve testsuite reliability
 
 0.2.4
   * Bumped upper bound on binary
