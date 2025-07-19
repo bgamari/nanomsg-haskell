@@ -22,7 +22,10 @@ category:            Network
 build-type:          Simple
 cabal-version:       >=1.10
 tested-with:
-  GHC == 9.4.7
+  GHC == 9.4.7,
+  GHC == 9.6.5,
+  GHC == 9.8.2,
+  GHC == 9.10.1
 extra-source-files:
   README.md
   , CONTRIBUTORS
@@ -48,39 +51,17 @@ library
 test-suite tests
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
-  main-is:           PropDriver.hs
+  main-is:           Main.hs
   other-modules:     BinaryProperties Properties
   ghc-options:       -O2 -Wall -fwarn-tabs -threaded "-with-rtsopts=-N" -rtsopts
   default-language:  Haskell2010
-  build-tool-depends:
-    tasty-discover:tasty-discover
   build-depends:
     base >= 4.5 && < 5,
     bytestring >= 0.9.0 && < 0.13,
     nanomsg-haskell,
     QuickCheck,
     tasty,
-    tasty-quickcheck,
-    tasty-discover
-
-test-suite tests-binary
-  type:              exitcode-stdio-1.0
-  hs-source-dirs:    tests
-  main-is:           BinaryDriver.hs
-  other-modules:     Properties BinaryProperties
-  ghc-options:       -O2 -Wall -fwarn-tabs -threaded "-with-rtsopts=-N" -rtsopts
-  default-language:  Haskell2010
-  build-tool-depends:
-    tasty-discover:tasty-discover
-  build-depends:
-    base >= 4.5 && < 5,
-    bytestring >= 0.9.0 && < 0.13,
-    nanomsg-haskell,
-    binary,
-    QuickCheck,
-    tasty,
-    tasty-quickcheck,
-    tasty-discover
+    tasty-quickcheck
 
 source-repository head
   type:              git
