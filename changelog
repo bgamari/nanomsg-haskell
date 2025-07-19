@@ -1,6 +1,7 @@
 0.2.5
   * Deprecate `NN_LINGER` option
   * Improve testsuite reliability
+  * Add support for `NN_RCVMAXSIZE` option
 
 0.2.4
   * Bumped upper bound on binary
